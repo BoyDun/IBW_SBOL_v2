@@ -65,16 +65,13 @@ public class App
     }
     
     public static SBOLDocument makeSBOLDocument() throws SBOLValidationException {
-    	//PLACEHOLDER NAMESPACE. Implement user prompt later (as text field?)
+    	//Placeholder namespace and version. Will implement user prompt later as a text field.
     	String namespace = "file://dummy.org";
-    	//SET NAMESPACE AS DEFAULT URI PREFIX
-    	//PLACEHOLDER VERSION. Ask user to also specify version of document?
     	String version = "1";
-    	//PULL PREFERENCE FROM IBW. Like HTTP vs FILE vs other scheme. assume it comes into ibw as a string as a parameter
-    	//WRAPPER FUNCTION THAT CALLS ORIGINAL METHOD. USE WRAPPER FUNCTION TO FETCH FROM PREFERENCES.
+
     	SBOLDocument document = new SBOLDocument();
     	
-    	document.setComplete(true); 			//Throw exceptions when URIs are incorrect
+    	document.setComplete(true); 		//Throw exceptions when URIs are incorrect
     	document.setCreateDefaults(true);	//Default components and/or functional component instances are created when not present
     	document.setTypesInURIs(false);		//Types aren't inserted into top-level identity URIs when they are created
     	document.setDefaultURIprefix(namespace);
