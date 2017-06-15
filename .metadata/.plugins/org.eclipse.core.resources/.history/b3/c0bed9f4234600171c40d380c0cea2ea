@@ -1,0 +1,5 @@
+package IBW_SBOL_update.make_doc;
+
+public class Biopart {
+	
+}

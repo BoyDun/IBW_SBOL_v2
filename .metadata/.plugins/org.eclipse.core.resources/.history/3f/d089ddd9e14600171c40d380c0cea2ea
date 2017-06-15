@@ -1,0 +1,19 @@
+package IBW_SBOL_update.make_doc;
+
+public class Biopart {
+	
+	public int sequenceLength;
+	public String name;
+	public String biologicalFunction;
+	public String accessionURL;
+	public int direction;
+	
+	Biopart(int length, String partName, String function, String URL, int partDirection){
+		//ADD POSITION FIELD. Have method called get position, return an integer. Value might be 1,2,3,4 (index)
+		sequenceLength = length;
+		name = partName;
+		biologicalFunction = function;
+		accessionURL = URL;
+		direction = partDirection;
+	}
+}

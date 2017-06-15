@@ -1,0 +1,9 @@
+package IBW_SBOL_update.make_doc;
+
+import java.util.ArrayList;
+
+public class BiocompilerModel {
+	
+	public ArrayList<Cell> cells = new ArrayList<Cell>();
+	
+}
