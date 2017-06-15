@@ -26,7 +26,7 @@ public class App
         ArrayList<Biopart> parts1 = new ArrayList<Biopart>();
         Biopart cell1part1 = new Biopart(2, "FirstCellFirstPart", "PROMOTER", "", 1, 1, "aa");
         Biopart cell1part2 = new Biopart(4, "FirstCellSecondPart", "GENE", "", 1, 2, "cccc");
-        Biopart cell1part3 = new Biopart(10, "FirstCellFinalPart", "", "Random_url", 0, 3, "tttttttttt");
+        Biopart cell1part3 = new Biopart(6, "FirstCellFinalPart", "", "Random_url", 0, 3, "tttccc");
         parts1.add(cell1part1);
         parts1.add(cell1part2);
         parts1.add(cell1part3);
@@ -79,7 +79,8 @@ public class App
     	for (Cell c : biocompilerModel.cells) {
     		
     		ComponentDefinition dnaComponent = document.createComponentDefinition(c.name, version, ComponentDefinition.DNA);
-
+    		dnaComponent.addRole(SequenceOntology.ENGINEERED_REGION);
+    		
     		//gather all parts in that cell
     		ArrayList<Biopart> allParts = new ArrayList<Biopart>();
     		for (Device d : c.devices){
@@ -87,25 +88,25 @@ public class App
     		}
     		
     		Collections.sort(allParts, (Biopart a, Biopart b) -> {
-    			if(a.position.getValue() > b.position.getValue()) {
-    				return 1;
-    			}
-    			return -1;
+    			return a.position.getValue() > b.position.getValue() ? 1 : -1;
     		});
-    		String wholeSequenceNucleotides = "";
-			//Flip reverse orientation sequences?
-    		Optional<String> reduced = allParts.stream().map((Biopart bp) -> {return bp.sequence;}).reduce((a,b)->a+b);
-    		if(reduced.isPresent())	wholeSequenceNucleotides = reduced.get().toLowerCase();
-    		Sequence wholeSequence = document.createSequence(c.name + "_sequence", version, wholeSequenceNucleotides, Sequence.IUPAC_DNA);
-
-    		dnaComponent.addSequence(wholeSequence);
+//    		String wholeSequenceNucleotides = "";
+//    		Optional<String> reduced = allParts.stream().map((Biopart bp) -> {return bp.sequence;}).reduce((a,b)->a+b);
+//    		if(reduced.isPresent())	wholeSequenceNucleotides = reduced.get().toLowerCase();
+//    		Sequence wholeSequence = document.createSequence(c.name + "_sequence", version, wholeSequenceNucleotides, Sequence.IUPAC_DNA);
+//
+//    		dnaComponent.addSequence(wholeSequence);
 
     		int sequenceStart = 1;
     		for (Biopart part : allParts) {
     			addSubcomponent(dnaComponent, document, part, sequenceStart, sequenceStart + part.sequenceLength - 1, version);
     			sequenceStart = sequenceStart + part.sequenceLength /*- 1 THIS CAUSES OFF BY ONE ERROR*/;
     		}
-
+    		
+    		String stringSeq = dnaComponent.getImpliedNucleicAcidSequence();
+    		Sequence wholeSequence = document.createSequence(c.name + "_sequence", version, stringSeq, Sequence.IUPAC_DNA);
+    		dnaComponent.addSequence(wholeSequence);
+    		
     	}
 
     	return document;
@@ -130,7 +131,7 @@ public class App
 
     	ComponentDefinition subCompDef = document.createComponentDefinition(part.name, version, ComponentDefinition.DNA);
     	subCompDef.addRole(partType);
-    	Sequence partSequence = document.createSequence(part.name + "_sequence", version, part.sequence, Sequence.IUPAC_DNA);
+    	Sequence partSequence = document.createSequence(part.name + "_sequence", version, part.sequence.toLowerCase(), Sequence.IUPAC_DNA);
     	subCompDef.addSequence(partSequence);
     	URI partURI;
     	if (part.accessionURL == null || part.accessionURL == "") {

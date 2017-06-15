@@ -1,107 +1,11 @@
 <?xml version="1.0" ?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:sbol="http://sbols.org/v2#" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:prov="http://www.w3.org/ns/prov#">
-  <sbol:ComponentDefinition rdf:about="file://dummy.org/FirstCellFirstPart/1">
-    <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCellFirstPart"/>
-    <sbol:displayId>FirstCellFirstPart</sbol:displayId>
-    <sbol:version>1</sbol:version>
-    <prov:wasDerivedFrom rdf:resource="http://sbols.org/FirstCellFirstPart/dnaComponent"/>
-    <sbol:type rdf:resource="http://www.biopax.org/release/biopax-level3.owl#DnaRegion"/>
-    <sbol:role rdf:resource="http://identifiers.org/so/SO:0000167"/>
-    <sbol:sequence rdf:resource="file://dummy.org/FirstCellFirstPart_sequence/1"/>
-  </sbol:ComponentDefinition>
-  <sbol:ComponentDefinition rdf:about="file://dummy.org/FirstCell/1">
-    <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell"/>
-    <sbol:displayId>FirstCell</sbol:displayId>
-    <sbol:version>1</sbol:version>
-    <sbol:type rdf:resource="http://www.biopax.org/release/biopax-level3.owl#DnaRegion"/>
-    <sbol:component>
-      <sbol:Component rdf:about="file://dummy.org/FirstCell/FirstCellSecondPart/1">
-        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellSecondPart"/>
-        <sbol:displayId>FirstCellSecondPart</sbol:displayId>
-        <sbol:version>1</sbol:version>
-        <sbol:access rdf:resource="http://sbols.org/v2#private"/>
-        <sbol:definition rdf:resource="file://dummy.org/FirstCellSecondPart/1"/>
-      </sbol:Component>
-    </sbol:component>
-    <sbol:component>
-      <sbol:Component rdf:about="file://dummy.org/FirstCell/FirstCellFirstPart/1">
-        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFirstPart"/>
-        <sbol:displayId>FirstCellFirstPart</sbol:displayId>
-        <sbol:version>1</sbol:version>
-        <sbol:access rdf:resource="http://sbols.org/v2#private"/>
-        <sbol:definition rdf:resource="file://dummy.org/FirstCellFirstPart/1"/>
-      </sbol:Component>
-    </sbol:component>
-    <sbol:component>
-      <sbol:Component rdf:about="file://dummy.org/FirstCell/FirstCellFinalPart/1">
-        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFinalPart"/>
-        <sbol:displayId>FirstCellFinalPart</sbol:displayId>
-        <sbol:version>1</sbol:version>
-        <sbol:access rdf:resource="http://sbols.org/v2#private"/>
-        <sbol:definition rdf:resource="file://dummy.org/FirstCellFinalPart/1"/>
-      </sbol:Component>
-    </sbol:component>
-    <sbol:sequenceAnnotation>
-      <sbol:SequenceAnnotation rdf:about="file://dummy.org/FirstCell/FirstCellFinalPart_annotation/1">
-        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFinalPart_annotation"/>
-        <sbol:displayId>FirstCellFinalPart_annotation</sbol:displayId>
-        <sbol:version>1</sbol:version>
-        <sbol:location>
-          <sbol:Range rdf:about="file://dummy.org/FirstCell/FirstCellFinalPart_annotation/range/1">
-            <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFinalPart_annotation/range"/>
-            <sbol:displayId>range</sbol:displayId>
-            <sbol:version>1</sbol:version>
-            <sbol:start>7</sbol:start>
-            <sbol:end>16</sbol:end>
-            <sbol:orientation rdf:resource="http://sbols.org/v2#reverseComplement"/>
-          </sbol:Range>
-        </sbol:location>
-        <sbol:component rdf:resource="file://dummy.org/FirstCell/FirstCellFinalPart/1"/>
-      </sbol:SequenceAnnotation>
-    </sbol:sequenceAnnotation>
-    <sbol:sequenceAnnotation>
-      <sbol:SequenceAnnotation rdf:about="file://dummy.org/FirstCell/FirstCellSecondPart_annotation/1">
-        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellSecondPart_annotation"/>
-        <sbol:displayId>FirstCellSecondPart_annotation</sbol:displayId>
-        <sbol:version>1</sbol:version>
-        <sbol:location>
-          <sbol:Range rdf:about="file://dummy.org/FirstCell/FirstCellSecondPart_annotation/range/1">
-            <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellSecondPart_annotation/range"/>
-            <sbol:displayId>range</sbol:displayId>
-            <sbol:version>1</sbol:version>
-            <sbol:start>3</sbol:start>
-            <sbol:end>6</sbol:end>
-            <sbol:orientation rdf:resource="http://sbols.org/v2#inline"/>
-          </sbol:Range>
-        </sbol:location>
-        <sbol:component rdf:resource="file://dummy.org/FirstCell/FirstCellSecondPart/1"/>
-      </sbol:SequenceAnnotation>
-    </sbol:sequenceAnnotation>
-    <sbol:sequenceAnnotation>
-      <sbol:SequenceAnnotation rdf:about="file://dummy.org/FirstCell/FirstCellFirstPart_annotation/1">
-        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFirstPart_annotation"/>
-        <sbol:displayId>FirstCellFirstPart_annotation</sbol:displayId>
-        <sbol:version>1</sbol:version>
-        <sbol:location>
-          <sbol:Range rdf:about="file://dummy.org/FirstCell/FirstCellFirstPart_annotation/range/1">
-            <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFirstPart_annotation/range"/>
-            <sbol:displayId>range</sbol:displayId>
-            <sbol:version>1</sbol:version>
-            <sbol:start>1</sbol:start>
-            <sbol:end>2</sbol:end>
-            <sbol:orientation rdf:resource="http://sbols.org/v2#inline"/>
-          </sbol:Range>
-        </sbol:location>
-        <sbol:component rdf:resource="file://dummy.org/FirstCell/FirstCellFirstPart/1"/>
-      </sbol:SequenceAnnotation>
-    </sbol:sequenceAnnotation>
-    <sbol:sequence rdf:resource="file://dummy.org/FirstCell_sequence/1"/>
-  </sbol:ComponentDefinition>
   <sbol:ComponentDefinition rdf:about="file://dummy.org/SecondCell/1">
     <sbol:persistentIdentity rdf:resource="file://dummy.org/SecondCell"/>
     <sbol:displayId>SecondCell</sbol:displayId>
     <sbol:version>1</sbol:version>
     <sbol:type rdf:resource="http://www.biopax.org/release/biopax-level3.owl#DnaRegion"/>
+    <sbol:role rdf:resource="http://identifiers.org/so/SO:0000804"/>
     <sbol:component>
       <sbol:Component rdf:about="file://dummy.org/SecondCell/SecondCellFirstPart/1">
         <sbol:persistentIdentity rdf:resource="file://dummy.org/SecondCell/SecondCellFirstPart"/>
@@ -158,6 +62,104 @@
     </sbol:sequenceAnnotation>
     <sbol:sequence rdf:resource="file://dummy.org/SecondCell_sequence/1"/>
   </sbol:ComponentDefinition>
+  <sbol:ComponentDefinition rdf:about="file://dummy.org/FirstCellFirstPart/1">
+    <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCellFirstPart"/>
+    <sbol:displayId>FirstCellFirstPart</sbol:displayId>
+    <sbol:version>1</sbol:version>
+    <prov:wasDerivedFrom rdf:resource="http://sbols.org/FirstCellFirstPart/dnaComponent"/>
+    <sbol:type rdf:resource="http://www.biopax.org/release/biopax-level3.owl#DnaRegion"/>
+    <sbol:role rdf:resource="http://identifiers.org/so/SO:0000167"/>
+    <sbol:sequence rdf:resource="file://dummy.org/FirstCellFirstPart_sequence/1"/>
+  </sbol:ComponentDefinition>
+  <sbol:ComponentDefinition rdf:about="file://dummy.org/FirstCell/1">
+    <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell"/>
+    <sbol:displayId>FirstCell</sbol:displayId>
+    <sbol:version>1</sbol:version>
+    <sbol:type rdf:resource="http://www.biopax.org/release/biopax-level3.owl#DnaRegion"/>
+    <sbol:role rdf:resource="http://identifiers.org/so/SO:0000804"/>
+    <sbol:component>
+      <sbol:Component rdf:about="file://dummy.org/FirstCell/FirstCellSecondPart/1">
+        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellSecondPart"/>
+        <sbol:displayId>FirstCellSecondPart</sbol:displayId>
+        <sbol:version>1</sbol:version>
+        <sbol:access rdf:resource="http://sbols.org/v2#private"/>
+        <sbol:definition rdf:resource="file://dummy.org/FirstCellSecondPart/1"/>
+      </sbol:Component>
+    </sbol:component>
+    <sbol:component>
+      <sbol:Component rdf:about="file://dummy.org/FirstCell/FirstCellFirstPart/1">
+        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFirstPart"/>
+        <sbol:displayId>FirstCellFirstPart</sbol:displayId>
+        <sbol:version>1</sbol:version>
+        <sbol:access rdf:resource="http://sbols.org/v2#private"/>
+        <sbol:definition rdf:resource="file://dummy.org/FirstCellFirstPart/1"/>
+      </sbol:Component>
+    </sbol:component>
+    <sbol:component>
+      <sbol:Component rdf:about="file://dummy.org/FirstCell/FirstCellFinalPart/1">
+        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFinalPart"/>
+        <sbol:displayId>FirstCellFinalPart</sbol:displayId>
+        <sbol:version>1</sbol:version>
+        <sbol:access rdf:resource="http://sbols.org/v2#private"/>
+        <sbol:definition rdf:resource="file://dummy.org/FirstCellFinalPart/1"/>
+      </sbol:Component>
+    </sbol:component>
+    <sbol:sequenceAnnotation>
+      <sbol:SequenceAnnotation rdf:about="file://dummy.org/FirstCell/FirstCellSecondPart_annotation/1">
+        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellSecondPart_annotation"/>
+        <sbol:displayId>FirstCellSecondPart_annotation</sbol:displayId>
+        <sbol:version>1</sbol:version>
+        <sbol:location>
+          <sbol:Range rdf:about="file://dummy.org/FirstCell/FirstCellSecondPart_annotation/range/1">
+            <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellSecondPart_annotation/range"/>
+            <sbol:displayId>range</sbol:displayId>
+            <sbol:version>1</sbol:version>
+            <sbol:start>3</sbol:start>
+            <sbol:end>6</sbol:end>
+            <sbol:orientation rdf:resource="http://sbols.org/v2#inline"/>
+          </sbol:Range>
+        </sbol:location>
+        <sbol:component rdf:resource="file://dummy.org/FirstCell/FirstCellSecondPart/1"/>
+      </sbol:SequenceAnnotation>
+    </sbol:sequenceAnnotation>
+    <sbol:sequenceAnnotation>
+      <sbol:SequenceAnnotation rdf:about="file://dummy.org/FirstCell/FirstCellFinalPart_annotation/1">
+        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFinalPart_annotation"/>
+        <sbol:displayId>FirstCellFinalPart_annotation</sbol:displayId>
+        <sbol:version>1</sbol:version>
+        <sbol:location>
+          <sbol:Range rdf:about="file://dummy.org/FirstCell/FirstCellFinalPart_annotation/range/1">
+            <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFinalPart_annotation/range"/>
+            <sbol:displayId>range</sbol:displayId>
+            <sbol:version>1</sbol:version>
+            <sbol:start>7</sbol:start>
+            <sbol:end>12</sbol:end>
+            <sbol:orientation rdf:resource="http://sbols.org/v2#reverseComplement"/>
+          </sbol:Range>
+        </sbol:location>
+        <sbol:component rdf:resource="file://dummy.org/FirstCell/FirstCellFinalPart/1"/>
+      </sbol:SequenceAnnotation>
+    </sbol:sequenceAnnotation>
+    <sbol:sequenceAnnotation>
+      <sbol:SequenceAnnotation rdf:about="file://dummy.org/FirstCell/FirstCellFirstPart_annotation/1">
+        <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFirstPart_annotation"/>
+        <sbol:displayId>FirstCellFirstPart_annotation</sbol:displayId>
+        <sbol:version>1</sbol:version>
+        <sbol:location>
+          <sbol:Range rdf:about="file://dummy.org/FirstCell/FirstCellFirstPart_annotation/range/1">
+            <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell/FirstCellFirstPart_annotation/range"/>
+            <sbol:displayId>range</sbol:displayId>
+            <sbol:version>1</sbol:version>
+            <sbol:start>1</sbol:start>
+            <sbol:end>2</sbol:end>
+            <sbol:orientation rdf:resource="http://sbols.org/v2#inline"/>
+          </sbol:Range>
+        </sbol:location>
+        <sbol:component rdf:resource="file://dummy.org/FirstCell/FirstCellFirstPart/1"/>
+      </sbol:SequenceAnnotation>
+    </sbol:sequenceAnnotation>
+    <sbol:sequence rdf:resource="file://dummy.org/FirstCell_sequence/1"/>
+  </sbol:ComponentDefinition>
   <sbol:ComponentDefinition rdf:about="file://dummy.org/SecondCellSecondPart/1">
     <sbol:persistentIdentity rdf:resource="file://dummy.org/SecondCellSecondPart"/>
     <sbol:displayId>SecondCellSecondPart</sbol:displayId>
@@ -201,18 +203,18 @@
     <sbol:elements>at</sbol:elements>
     <sbol:encoding rdf:resource="http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html"/>
   </sbol:Sequence>
-  <sbol:Sequence rdf:about="file://dummy.org/FirstCellFinalPart_sequence/1">
-    <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCellFinalPart_sequence"/>
-    <sbol:displayId>FirstCellFinalPart_sequence</sbol:displayId>
-    <sbol:version>1</sbol:version>
-    <sbol:elements>tttttttttt</sbol:elements>
-    <sbol:encoding rdf:resource="http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html"/>
-  </sbol:Sequence>
   <sbol:Sequence rdf:about="file://dummy.org/FirstCell_sequence/1">
     <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell_sequence"/>
     <sbol:displayId>FirstCell_sequence</sbol:displayId>
     <sbol:version>1</sbol:version>
-    <sbol:elements>aacccctttttttttt</sbol:elements>
+    <sbol:elements>aaccccgggaaa</sbol:elements>
+    <sbol:encoding rdf:resource="http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html"/>
+  </sbol:Sequence>
+  <sbol:Sequence rdf:about="file://dummy.org/FirstCellFinalPart_sequence/1">
+    <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCellFinalPart_sequence"/>
+    <sbol:displayId>FirstCellFinalPart_sequence</sbol:displayId>
+    <sbol:version>1</sbol:version>
+    <sbol:elements>tttccc</sbol:elements>
     <sbol:encoding rdf:resource="http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html"/>
   </sbol:Sequence>
   <sbol:Sequence rdf:about="file://dummy.org/FirstCellSecondPart_sequence/1">
