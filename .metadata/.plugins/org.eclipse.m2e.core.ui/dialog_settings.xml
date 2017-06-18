@@ -14,9 +14,11 @@
 	</section>
 	<section name="MavenProjectImportWizardPage">
 		<list key="rootDirectory">
+			<item value="C:\Users\Peter\workspace 2\import_info"/>
 			<item value="C:\Users\Peter\Documents\my-app"/>
 		</list>
 		<list key="projectNameTemplate">
+			<item value="import_info"/>
 			<item value="[artifactId]"/>
 			<item value="[artifactId]-TRUNK"/>
 			<item value="[artifactId]-[version]"/>

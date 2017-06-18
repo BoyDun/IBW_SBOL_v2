@@ -1,9 +1,0 @@
-package IBW_SBOL_update.make_doc;
-
-public class Biopart {
-	
-	public int sequenceLength;
-	public String name;
-	public String biologicalFunction;
-	
-}
