@@ -207,7 +207,14 @@
     <sbol:persistentIdentity rdf:resource="file://dummy.org/FirstCell_sequence"/>
     <sbol:displayId>FirstCell_sequence</sbol:displayId>
     <sbol:version>1</sbol:version>
-    <sbol:elements>aaccccgggaaa</sbol:elements>
+    <sbol:elements>taccccgggaaa</sbol:elements>
+    <sbol:encoding rdf:resource="http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html"/>
+  </sbol:Sequence>
+  <sbol:Sequence rdf:about="file://dummy.org/SecondCell_sequence/1">
+    <sbol:persistentIdentity rdf:resource="file://dummy.org/SecondCell_sequence"/>
+    <sbol:displayId>SecondCell_sequence</sbol:displayId>
+    <sbol:version>1</sbol:version>
+    <sbol:elements>ttgc</sbol:elements>
     <sbol:encoding rdf:resource="http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html"/>
   </sbol:Sequence>
   <sbol:Sequence rdf:about="file://dummy.org/FirstCellFinalPart_sequence/1">
@@ -236,13 +243,6 @@
     <sbol:displayId>FirstCellFirstPart_sequence</sbol:displayId>
     <sbol:version>1</sbol:version>
     <sbol:elements>aa</sbol:elements>
-    <sbol:encoding rdf:resource="http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html"/>
-  </sbol:Sequence>
-  <sbol:Sequence rdf:about="file://dummy.org/SecondCell_sequence/1">
-    <sbol:persistentIdentity rdf:resource="file://dummy.org/SecondCell_sequence"/>
-    <sbol:displayId>SecondCell_sequence</sbol:displayId>
-    <sbol:version>1</sbol:version>
-    <sbol:elements>atgc</sbol:elements>
     <sbol:encoding rdf:resource="http://www.chem.qmul.ac.uk/iubmb/misc/naseq.html"/>
   </sbol:Sequence>
 </rdf:RDF>
