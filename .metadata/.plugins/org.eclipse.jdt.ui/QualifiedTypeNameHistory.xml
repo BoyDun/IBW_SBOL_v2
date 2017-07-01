@@ -21,4 +21,6 @@
 <fullyQualifiedTypeName name="org.sbolstandard.core2.SBOLReader"/>
 <fullyQualifiedTypeName name="java.util.Set"/>
 <fullyQualifiedTypeName name="java.lang.System"/>
+<fullyQualifiedTypeName name="org.sbolstandard.core2.FunctionalComponent"/>
+<fullyQualifiedTypeName name="org.sbolstandard.core2.Interaction"/>
 </qualifiedTypeNameHistroy>

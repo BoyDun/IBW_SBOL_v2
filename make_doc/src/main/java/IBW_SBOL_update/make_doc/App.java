@@ -18,7 +18,7 @@ import org.sbolstandard.core2.SequenceOntology;
 public class App 
 {
 	
-	static BiocompilerModel biocompilerModel = new BiocompilerModel();
+	static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
 	
     public static void main( String[] args ) {
     	

@@ -1,0 +1,53 @@
+package IBW_SBOL_update.make_doc;
+
+import java.io.IOException;
+import java.util.ArrayList;
+
+import org.sbolstandard.core2.SBOLConversionException;
+import org.sbolstandard.core2.SBOLDocument;
+import org.sbolstandard.core2.SBOLValidationException;
+
+public class SBMLExport {
+static BiocompilerModel biocompilerModel = new BiocompilerModel();
+	
+    public static void main( String[] args ) {
+    	
+    	//Manually populating data structures for makeSBOLDocument to read in
+        ArrayList<Biopart> parts1 = new ArrayList<Biopart>();
+        Biopart cell1part1 = new Biopart(2, "FirstCellFirstPart", "PROMOTER", "", 1, 1, "aa");
+        Biopart cell1part2 = new Biopart(4, "FirstCellSecondPart", "GENE", "", 1, 2, "cccc");
+        Biopart cell1part3 = new Biopart(6, "FirstCellFinalPart", "", "Random_url", 0, 3, "tttccc");
+        parts1.add(cell1part1);
+        parts1.add(cell1part2);
+        parts1.add(cell1part3);
+        Device d1 = new Device(parts1, "Device1");
+        ArrayList<Device> devices1 = new ArrayList<Device>();
+        devices1.add(d1);
+        biocompilerModel.addCell("FirstCell", devices1);
+        
+        ArrayList<Biopart> parts2 = new ArrayList<Biopart>();
+        Biopart cell2part1 = new Biopart(2, "SecondCellFirstPart", "TERMINATOR", "", 0, 1, "at");
+        Biopart cell2part2 = new Biopart(2, "SecondCellSecondPart", "random", "", 0, 2, "gc");
+        parts2.add(cell2part1);
+        parts2.add(cell2part2);
+        Device d2 = new Device(parts2, "Device2");
+        ArrayList<Device> devices2 = new ArrayList<Device>();
+        devices2.add(d2);
+        biocompilerModel.addCell("SecondCell", devices2);
+        
+        //Attempt to create SBOL document and save it to the local workspace
+        try {
+			SBOLDocument doc = makeSBMLDocument();
+			doc.write("Updated Export Test SBOL Document");
+		} catch (SBOLValidationException e) {
+			System.out.println("SBOLValidationException Thrown");
+			e.printStackTrace();
+		} catch (SBOLConversionException e) {
+			System.out.println("SBOLConversionException Thrown");
+			e.printStackTrace();
+		} catch (IOException e) {
+			System.out.println("IOException Thrown");
+			e.printStackTrace();
+		}
+    }
+}
