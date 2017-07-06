@@ -1,3 +1,4 @@
 eclipse.m2.downloadJavadoc=true
 eclipse.m2.downloadSources=true
+eclipse.m2.globalUpdatePolicy=false
 eclipse.preferences.version=1

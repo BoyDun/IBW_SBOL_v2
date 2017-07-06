@@ -1,0 +1,18 @@
+2017-07-02 11:41:19,416 ERROR o.s.j.v.SBMLValidator [main] There has been an error parsing the consistency check XML result: Index: 5, Size: 5 : Index: 5, Size: 5
+---- Debugging information ----
+message             : Index: 5, Size: 5
+cause-exception     : java.lang.IndexOutOfBoundsException
+cause-message       : Index: 5, Size: 5
+class               : org.sbml.jsbml.SBMLErrorLog
+required-type       : org.sbml.jsbml.SBMLError
+path                : /validation-results/problem
+-------------------------------
+2017-07-02 11:46:01,830 ERROR o.s.j.v.SBMLValidator [main] There has been an error parsing the consistency check XML result: Index: 5, Size: 5 : Index: 5, Size: 5
+---- Debugging information ----
+message             : Index: 5, Size: 5
+cause-exception     : java.lang.IndexOutOfBoundsException
+cause-message       : Index: 5, Size: 5
+class               : org.sbml.jsbml.SBMLErrorLog
+required-type       : org.sbml.jsbml.SBMLError
+path                : /validation-results/problem
+-------------------------------

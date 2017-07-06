@@ -95,23 +95,26 @@ public class Export_Updated
     	document.setTypesInURIs(false);		//Types aren't inserted into top-level identity URIs when they are created
     	document.setDefaultURIprefix(namespace);
     	
+    	ModuleDefinition model = document.createModuleDefinition(biocompilerModel.name, version);
+    	
     	for (Cell c : biocompilerModel.cells) {
     		
     		ModuleDefinition cell = document.createModuleDefinition(c.name, version);
+    		
 //    		for(MolecularSpecies ms : c.moleculeList) { /* Have it ignore DNA parts? */
 //  			if(document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
-//    			cell.createFunctionalComponent(ms.name + "_molecule", AccessType.PUBLIC, ms.name, DirectionType.NONE); /* Display ID correct? Access? */
+//    			cell.createFunctionalComponent(ms.name + "_molecule", AccessType.PUBLIC, ms.name, DirectionType.NONE); /* Access? */
 //    		}
     		
     		for (Device d : c.devices){
-    			ModuleDefinition device = document.createModuleDefinition(d.name + "_module_definition", version); /* Used d.name from ibl.html guide */;
+    			ModuleDefinition device = document.createModuleDefinition(d.name, version);
     			
     			ArrayList<Biopart> allParts = d.parts;
     			Collections.sort(allParts, (Biopart a, Biopart b) -> {
     				return a.position.getValue() > b.position.getValue() ? 1 : -1;
     			});
     			
-    			String partListID = d.name + "_parts"; //Name?
+    			String partListID = d.name + "_parts"; 
     			ComponentDefinition partList = document.createComponentDefinition(partListID, version, ComponentDefinition.DNA);
         		partList.addRole(SequenceOntology.ENGINEERED_REGION);
     			
@@ -128,17 +131,16 @@ public class Export_Updated
     			Sequence wholeSequence = document.createSequence(d.name + "_sequence", version, stringSeq, Sequence.IUPAC_DNA);
     			partList.addSequence(wholeSequence);
     			
-    			device.createFunctionalComponent(partListID, AccessType.PRIVATE, partListID, version, DirectionType.NONE); /* Using partlistID for both? private or public access?*/
+    			device.createFunctionalComponent(partListID, AccessType.PRIVATE, partListID, version, DirectionType.NONE); /* private or public access?*/
     			
-    			//DO INPUT, OUTPUT, AND MOLECULELIST
 //        		for (MolecularSpecies ms : d.moleculeList) { 
 //        			if (document.getComponentDefinition(ms.name, version) == null) ComponentDefinition species = document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
-//        			device.createFunctionalComponent(ms.name + "_molecule", AccessType.PRIVATE, ms.name, version, DirectionType.NONE); /* Display ID correct? */
+//        			device.createFunctionalComponent(ms.name + "_molecule", AccessType.PRIVATE, ms.name, version, DirectionType.NONE);
 //        		}
 //        		for (MolecularSpecies ms : d.inputList) {
 //  				if (document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
 //    				String inputName = ms.name + "_input";
-//    				FunctionalComponent f = device.createFunctionalComponent(inputName, AccessType.PUBLIC, ms.name, version, DirectionType.IN); /* Display ID correct? */
+//    				FunctionalComponent f = device.createFunctionalComponent(inputName, AccessType.PUBLIC, ms.name, version, DirectionType.IN);
 //    				f.createMapsTo(ms.name, RefinementType.VERIFYIDENTICAL, ms.name + "_molecule", ms.name + "_input");
 //    				Interaction in = device.createInteraction(inputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000168"));
 //    				in.createParticipation(ms.name + "_modifier", inputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000019"));
@@ -147,16 +149,17 @@ public class Export_Updated
 //        		for (MolecularSpecies ms : d.outputList) {
 //    				if (document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
 //    				String outputName = ms.name + "_output";
-//    				FunctionalComponent f = device.createFunctionalComponent(outputName, AccessType.PUBLIC, ms.name, version, DirectionType.OUT); /* Display ID correct? */
+//    				FunctionalComponent f = device.createFunctionalComponent(outputName, AccessType.PUBLIC, ms.name, version, DirectionType.OUT);
 //    				f.createMapsTo(ms.name, RefinementType.VERIFYIDENTICAL, ms.name + "_molecule", outputName);
 //    				Interaction out = device.createInteraction(outputName,  URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000589"));
 //    				out.createParticipation(ms.name + "_product", outputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000011"));
 //    				out.createParticipation(partListID + "_template", partListID, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000645"));
 //    			}
     			
-    			cell.createModule(d.name + "_module", d.name + "_module_definition", version); /* Namescheme? */
+    			cell.createModule(d.name + "_module", d.name, version);
     		}
     		
+    		model.createModule(c.name + "_module", c.name);
     	}
 
     	return document;
@@ -195,15 +198,9 @@ public class Export_Updated
     	subCompDef.addRole(partType);
     	Sequence partSequence = document.createSequence(part.name + "_sequence", version, part.sequence.toLowerCase(), Sequence.IUPAC_DNA);
     	subCompDef.addSequence(partSequence);
-    	URI partURI;
-    	if (part.accessionURL == null || part.accessionURL == "") {
-    		//Remove this line and only include if there is an accession URL?
-    		partURI = URI.create("http://sbols.org/" + part.name + "/dnaComponent");
+    	if (part.accessionURL != null && part.accessionURL != "") {
+        	subCompDef.addWasDerivedFrom(URI.create(part.accessionURL));
     	}
-    	else {
-    		partURI = URI.create(part.accessionURL);
-    	}
-    	subCompDef.addWasDerivedFrom(partURI);
     	
     	compDef.createComponent(part.name, AccessType.PRIVATE, part.name, version);
     	curAnnotation.setComponent(part.name);

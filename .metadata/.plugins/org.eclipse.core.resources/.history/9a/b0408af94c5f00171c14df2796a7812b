@@ -1,0 +1,218 @@
+package IBW_SBOL_update.make_doc;
+
+import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collections;
+
+import org.sbolstandard.core2.AccessType;
+import org.sbolstandard.core2.ComponentDefinition;
+import org.sbolstandard.core2.DirectionType;
+import org.sbolstandard.core2.FunctionalComponent;
+import org.sbolstandard.core2.Interaction;
+import org.sbolstandard.core2.ModuleDefinition;
+import org.sbolstandard.core2.OrientationType;
+import org.sbolstandard.core2.RefinementType;
+import org.sbolstandard.core2.SBOLConversionException;
+import org.sbolstandard.core2.SBOLDocument;
+import org.sbolstandard.core2.SBOLValidationException;
+import org.sbolstandard.core2.Sequence;
+import org.sbolstandard.core2.SequenceAnnotation;
+import org.sbolstandard.core2.SequenceOntology;
+
+
+public class Export_Updated
+{
+	
+	static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
+	
+    public static void main( String[] args ) {
+    	
+    	//Manually populating data structures for makeSBOLDocument to read in
+        ArrayList<Biopart> parts1 = new ArrayList<Biopart>();
+        Biopart cell1part1 = new Biopart(2, "FirstCellFirstPart", "PROMOTER", "", 1, 1, "aa");
+        Biopart cell1part2 = new Biopart(4, "FirstCellSecondPart", "GENE", "", 1, 2, "cccc");
+        Biopart cell1part3 = new Biopart(6, "FirstCellFinalPart", "", "Random_url", 0, 3, "tttccc");
+        parts1.add(cell1part1);
+        parts1.add(cell1part2);
+        parts1.add(cell1part3);
+        Device d1 = new Device(parts1, "Device1");
+        ArrayList<Device> devices1 = new ArrayList<Device>();
+        devices1.add(d1);
+        biocompilerModel.addCell("FirstCell", devices1);
+        
+        ArrayList<Biopart> parts2 = new ArrayList<Biopart>();
+        Biopart cell2part1 = new Biopart(2, "SecondCellFirstPart", "TERMINATOR", "", 0, 1, "at");
+        Biopart cell2part2 = new Biopart(2, "SecondCellSecondPart", "random", "", 0, 2, "gc");
+        parts2.add(cell2part1);
+        parts2.add(cell2part2);
+        Device d2 = new Device(parts2, "Device2");
+        ArrayList<Device> devices2 = new ArrayList<Device>();
+        devices2.add(d2);
+        biocompilerModel.addCell("SecondCell", devices2);
+        
+        //Attempt to create SBOL document and save it to the local workspace
+        try {
+			SBOLDocument doc = makeSBOLDocument();
+			doc.write("Updated Export Test SBOL Document");
+		} catch (SBOLValidationException e) {
+			System.out.println("SBOLValidationException Thrown");
+			e.printStackTrace();
+		} catch (SBOLConversionException e) {
+			System.out.println("SBOLConversionException Thrown");
+			e.printStackTrace();
+		} catch (IOException e) {
+			System.out.println("IOException Thrown");
+			e.printStackTrace();
+		}
+    }
+    
+    /**
+     * Helper function to extract the sequence in String form from a biopart.
+     * 
+     * @param bp
+     * @return sequence
+     */
+    public static String getSequence(Biopart bp) {
+    	return bp.sequence;
+    }
+    
+    /**
+     * This function reads information from an IBW EMF model and creates a SBOL document out of it.
+     * 
+     * @return SBOLDocument
+     * @throws SBOLValidationException
+     */
+    public static SBOLDocument makeSBOLDocument() throws SBOLValidationException {
+    	//Placeholder namespace and version. Will implement user prompt later as a text field.
+    	String namespace = "file://dummy.org";
+    	String version = "1";
+
+    	SBOLDocument document = new SBOLDocument();
+    	
+    	document.setComplete(true); 		//Throw exceptions when URIs are incorrect
+    	document.setCreateDefaults(true);	//Default components and/or functional component instances are created when not present
+    	document.setTypesInURIs(false);		//Types aren't inserted into top-level identity URIs when they are created
+    	document.setDefaultURIprefix(namespace);
+    	
+    	ModuleDefinition model = document.createModuleDefinition(biocompilerModel.name, version);
+    	
+    	for (Cell c : biocompilerModel.cells) {
+    		
+    		ModuleDefinition cell = document.createModuleDefinition(c.name, version);
+    		
+//    		for(MolecularSpecies ms : c.moleculeList) { /* Have it ignore DNA parts? */
+//  			if(document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
+//    			cell.createFunctionalComponent(ms.name + "_molecule", AccessType.PUBLIC, ms.name, DirectionType.NONE); /* Access? */
+//    		}
+    		
+    		for (Device d : c.devices){
+    			ModuleDefinition device = document.createModuleDefinition(d.name + "_module_definition", version); /* Used d.name from ibl.html guide */;
+    			
+    			ArrayList<Biopart> allParts = d.parts;
+    			Collections.sort(allParts, (Biopart a, Biopart b) -> {
+    				return a.position.getValue() > b.position.getValue() ? 1 : -1;
+    			});
+    			
+    			String partListID = d.name + "_parts"; //Name?
+    			ComponentDefinition partList = document.createComponentDefinition(partListID, version, ComponentDefinition.DNA);
+        		partList.addRole(SequenceOntology.ENGINEERED_REGION);
+    			
+    			int sequenceStart = 1;
+    			//Create a subcomponent corresponding to each part in the current cell
+    			for (Biopart part : allParts) {
+    				addSubcomponent(partList, document, part, sequenceStart, sequenceStart + part.sequenceLength - 1, version);
+    				//Update the start index to reflect the next part we're iterating through
+    				sequenceStart = sequenceStart + part.sequenceLength;
+    			}
+    		
+    			//Store the overall nucleotide sequence in the overall component definition of the cell
+    			String stringSeq = partList.getImpliedNucleicAcidSequence();
+    			Sequence wholeSequence = document.createSequence(d.name + "_sequence", version, stringSeq, Sequence.IUPAC_DNA);
+    			partList.addSequence(wholeSequence);
+    			
+    			device.createFunctionalComponent(partListID, AccessType.PRIVATE, partListID, version, DirectionType.NONE); /* Using partlistID for both? private or public access?*/
+    			
+    			//DO INPUT, OUTPUT, AND MOLECULELIST
+//        		for (MolecularSpecies ms : d.moleculeList) { 
+//        			if (document.getComponentDefinition(ms.name, version) == null) ComponentDefinition species = document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
+//        			device.createFunctionalComponent(ms.name + "_molecule", AccessType.PRIVATE, ms.name, version, DirectionType.NONE); /* Display ID correct? */
+//        		}
+//        		for (MolecularSpecies ms : d.inputList) {
+//  				if (document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
+//    				String inputName = ms.name + "_input";
+//    				FunctionalComponent f = device.createFunctionalComponent(inputName, AccessType.PUBLIC, ms.name, version, DirectionType.IN); /* Display ID correct? */
+//    				f.createMapsTo(ms.name, RefinementType.VERIFYIDENTICAL, ms.name + "_molecule", ms.name + "_input");
+//    				Interaction in = device.createInteraction(inputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000168"));
+//    				in.createParticipation(ms.name + "_modifier", inputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000019"));
+//    				in.createParticipation(partListID + "_modified", partListID, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000644"));
+//    			}
+//        		for (MolecularSpecies ms : d.outputList) {
+//    				if (document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
+//    				String outputName = ms.name + "_output";
+//    				FunctionalComponent f = device.createFunctionalComponent(outputName, AccessType.PUBLIC, ms.name, version, DirectionType.OUT); /* Display ID correct? */
+//    				f.createMapsTo(ms.name, RefinementType.VERIFYIDENTICAL, ms.name + "_molecule", outputName);
+//    				Interaction out = device.createInteraction(outputName,  URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000589"));
+//    				out.createParticipation(ms.name + "_product", outputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000011"));
+//    				out.createParticipation(partListID + "_template", partListID, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000645"));
+//    			}
+    			
+    			cell.createModule(d.name + "_module", d.name + "_module_definition", version); /* Namescheme? */
+    		}
+    		
+    		model.createModule(c.name + "_module", c.name);
+    		
+    	}
+
+    	return document;
+    }
+
+    /**
+     * This function adds a subcomponent definition, subcomponent, and sequence annotation to a component definition
+     * it takes in with specified parameters.
+     * 
+     * @param compDef
+     * @param document
+     * @param part
+     * @param sequenceStart
+     * @param sequenceEnd
+     * @param version
+     * @throws SBOLValidationException
+     */
+    private static void addSubcomponent(ComponentDefinition compDef, SBOLDocument document, Biopart part,
+    	int sequenceStart, int sequenceEnd, String version) throws SBOLValidationException {
+
+    	OrientationType orientation = (part.direction == 1 ? OrientationType.INLINE : OrientationType.REVERSECOMPLEMENT);
+    	//Ensure displayID is unique using counter
+    	SequenceAnnotation curAnnotation = compDef.createSequenceAnnotation(part.name + "_annotation", "range", sequenceStart, sequenceEnd, orientation);
+    	
+    	URI partType;
+    	//Use the predefined SequenceOntology constant
+    	switch (part.biologicalFunction) {
+    		case "PROMOTER": { partType = SequenceOntology.PROMOTER; break; }
+    		case "GENE": { partType = SequenceOntology.CDS; break; }
+    		case "RBS": { partType = SequenceOntology.RIBOSOME_ENTRY_SITE; break; }
+    		case "TERMINATOR": { partType = SequenceOntology.TERMINATOR; break; }
+    		default: { partType = URI.create("http://identifiers.org/so/SO:0000110"); break; }
+    	}
+
+    	ComponentDefinition subCompDef = document.createComponentDefinition(part.name, version, ComponentDefinition.DNA);
+    	subCompDef.addRole(partType);
+    	Sequence partSequence = document.createSequence(part.name + "_sequence", version, part.sequence.toLowerCase(), Sequence.IUPAC_DNA);
+    	subCompDef.addSequence(partSequence);
+    	URI partURI;
+    	if (part.accessionURL == null || part.accessionURL == "") {
+    		//Remove this line and only include if there is an accession URL?
+    		partURI = URI.create("http://sbols.org/" + part.name + "/dnaComponent");
+    	}
+    	else {
+    		partURI = URI.create(part.accessionURL);
+    	}
+    	subCompDef.addWasDerivedFrom(partURI);
+    	
+    	compDef.createComponent(part.name, AccessType.PRIVATE, part.name, version);
+    	curAnnotation.setComponent(part.name);
+
+    }
+
+}

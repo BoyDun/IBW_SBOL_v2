@@ -1,15 +1,31 @@
 package IBW_SBOL_update.make_doc;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Collections;
+
+import javax.swing.JFrame;
+import javax.swing.JOptionPane;
+import javax.xml.stream.XMLStreamException;
 
 import org.sbml.jsbml.Compartment;
 import org.sbml.jsbml.Model;
+import org.sbml.jsbml.Reaction;
 import org.sbml.jsbml.SBMLDocument;
 import org.sbml.jsbml.SBMLError;
+import org.sbml.jsbml.SBMLException;
+import org.sbml.jsbml.SBMLWriter;
+import org.sbml.jsbml.SBase;
 import org.sbml.jsbml.Species;
 import org.sbml.jsbml.UnitDefinition;
+import org.sbml.jsbml.ext.comp.CompConstants;
 import org.sbml.jsbml.ext.comp.CompModelPlugin;
 import org.sbml.jsbml.ext.comp.CompSBMLDocumentPlugin;
+import org.sbml.jsbml.ext.comp.CompSBasePlugin;
+import org.sbml.jsbml.ext.comp.Port;
+import org.sbml.jsbml.ext.comp.ReplacedBy;
+import org.sbml.jsbml.ext.comp.ReplacedElement;
+import org.sbml.jsbml.ext.comp.Submodel;
 
 public class SBMLExport {
 static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
@@ -42,48 +58,161 @@ static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
         //Attempt to create SBML document and save it to the local workspace
         try {
 			SBMLDocument doc = makeSBMLDocument();
-			System.out.println(doc.checkConsistency());
-			System.out.println(doc.getListOfErrors()); //Which one is right error checking?
-//			doc.write("Updated Export Test SBML Document"); HOW TO WRITE SBML DOCUMENT TO FILE
-		} catch (SBMLError e) {
-			System.out.println("SBMLError Thrown");
+//			System.out.println(doc.checkConsistency());
+//			System.out.println(doc.getListOfErrors()); //Which one is right error checking?
+        	JFrame frame = new JFrame();
+        	int choice = JOptionPane.showConfirmDialog(
+        		    frame,
+        		    "Do you want to flatten the exported SBML document?",
+        		    "SBML Flattening",
+        		    JOptionPane.YES_NO_OPTION);
+        	frame.dispose();
+        	if (choice == JOptionPane.YES_OPTION) {};
+        	SBMLWriter writer = new SBMLWriter();
+        	writer.writeSBMLToFile(doc, "Test SBML Document");
+		} catch (SBMLException e) {
+			System.out.println("SBMLException Thrown");
+			e.printStackTrace();
+		} catch (FileNotFoundException e) {
+			System.out.println("FileNotFoundException Thrown");
+			e.printStackTrace();
+		} catch (XMLStreamException e) {
+			System.out.println("XMLStreamException Thrown");
 			e.printStackTrace();
 		}
     }
     
+    private static CompSBMLDocumentPlugin getCompDocPlugin(SBMLDocument doc) {
+		CompSBMLDocumentPlugin compDoc = new CompSBMLDocumentPlugin(doc);
+		doc.addExtension(CompConstants.namespaceURI, compDoc);
+		return compDoc;
+    }
+    
+    private static CompModelPlugin getCompModelPlugin(Model model) {
+    	CompModelPlugin compModel = new CompModelPlugin(model);
+    	model.addExtension(CompConstants.namespaceURI, compModel);
+    	return compModel;
+    }
+    
+    private static CompSBasePlugin getCompSBasePlugin(SBase sb) {
+    	CompSBasePlugin compBase = new CompSBasePlugin(sb);
+    	sb.addExtension(CompConstants.namespaceURI, compBase);
+    	return compBase;
+    }
+    
+    private static Species createSpecies(MolecularSpecies ms, String displayID, Model model, Compartment compartment) {
+		Species species = model.createSpecies(displayID, compartment);
+		if (ms.amount != null) species.setInitialAmount(ms.amount);
+		if(ms.unit != null && model.findUnitDefinition(ms.unit) == null) model.createUnitDefinition(ms.unit);
+    }
+    
+    private static void setReplacement(MolecularSpecies ms, String displayId, String submodelRef, Model model, Compartment compartment, int level, int version) {
+		if (model.containsSpecies(ms.name + "_molecule")) {
+			Species replacementSpecies = model.getSpecies(ms.name + "_molecule");
+			CompSBasePlugin speciesPlugin = getCompSBasePlugin(replacementSpecies);
+			
+			Species replacedSpecies = model.createSpecies(displayId, compartment);
+			Port speciesPort = new Port(ms.name + "_port", level, version);
+			speciesPort.setParent(replacedSpecies);
+			
+			ReplacedElement reSpecies = speciesPlugin.createReplacedElement();
+			reSpecies.setSubmodelRef(submodelRef);
+			reSpecies.setPortRef(ms.name + "_port");
+		}
+		else{
+			createSpecies(ms, displayId, model, compartment);
+		}
+    }
+    
+    private static void setRule(Rule r, Model model, Compartment compartment) {
+		Reaction reaction = model.createReaction(r.name);
+		reaction.setCompartment(compartment);
+		for(MolecularSpecies ms : r.leftHandSide) {
+			String mName = ms.name + "_molecule";
+			if (!model.containsSpecies(mName)) createSpecies(ms, mName, model, compartment);
+			reaction.createReactant(model.getSpecies(mName));
+		}
+		for(MolecularSpecies ms : r.rightHandSide) {
+			String mName = ms.name + "_molecule";
+			if (!model.containsSpecies(mName)) createSpecies(ms, mName, model, compartment);
+			reaction.createProduct(model.getSpecies(mName));
+		}
+		if (r.isBidirectional) reaction.setReversible(true);
+		//set kinetic law. HOW TO MODEL NUMBERS
+		//set sboterm??
+    }
+    
     public static SBMLDocument makeSBMLDocument() {
     	
-    	int version = 1; /* Placeholder version */
-    	String prefix = "file://"; /* Placeholder prefix */
-    	String namespace = "dummy.org"; /* Placeholder namespace */
+    	int version = 1;
+    	int level = 3;
     	
-		SBMLDocument doc = new SBMLDocument(3, version);
-		doc.addDeclaredNamespace(prefix, namespace);
-		CompSBMLDocumentPlugin compDoc = new CompSBMLDocumentPlugin(doc);
-		
-
-    	for (Cell c : biocompilerModel.cells) {
+		SBMLDocument doc = new SBMLDocument(level, version);
+		doc.enablePackage(CompConstants.namespaceURI);
+		CompSBMLDocumentPlugin compDoc = getCompDocPlugin(doc);
+    	Model bioModel = compDoc.createModelDefinition(biocompilerModel.name);
+		CompModelPlugin bModelPlugin = getCompModelPlugin(bioModel);
+    	
+		for (Cell c : biocompilerModel.cells) {
     		
     		Model cModel = compDoc.createModelDefinition(c.name);
-    		CompModelPlugin cModelPlugin = new CompModelPlugin(cModel);
-//        	HashSet<URI> molecules = new HashSet<URI>(); /* Keep visited molecules over every cell or per cell? Is URI proper way to keep track of molecule? */
-//    		for(MolecularSpecies ms : c.moleculeList) { /* Have it ignore DNA parts? */
-//    			molecules.add(ms.URI);
-//    			Species species = m.createSpecies(ms.name + "_molecule", compartment);
-//    			species.setInitialAmount(ms.amount);
-//    			String unit = species.unit; ASK ABOUT UNIT DEFINITION
-//    			UnitDefinition unitDef;
-//    			if((unitDef = m.findUnitDefinition(unit)) == null) unitDef = m.createUnitDefinition(unit);
-//    			
+    		Compartment cCompartment = cModel.createCompartment(c.name + "_compartment");
+    		CompModelPlugin cModelPlugin = getCompModelPlugin(cModel);
+			CompSBasePlugin cBasePlugin = getCompSBasePlugin(cCompartment);
+    		
+    		Submodel cSubmodel = new Submodel(c.name + "_submodel", level, version);
+    		cSubmodel.setModelRef(c.name);
+    		bModelPlugin.addSubmodel(cSubmodel);
+    		
+//    		for (MolecularSpecies ms : c.moleculeList) { /* Have it ignore DNA parts? */
+//    			createSpecies(ms, ms.name + "_molecule", cModel, cCompartment);
 //    		}
     		
-    		for (Device d : c.devices){
-    			Model d_model = compDoc.createModelDefinition(d.name);
-//    			c_model.listof
-//				DO THE SAME AS BEFORE?? For input, output, molecule list, but not parts
+//    		for (Rule r : c.ruleList) {
+//    			setRule(r, cModel, cCompartment);
+//    		}
+    		
+    		for (Device d : c.devices) {
+    			Model dModel = compDoc.createModelDefinition(d.name);
+        		Submodel dSubmodel = new Submodel(d.name + "_submodel", level, version);
+        		dSubmodel.setModelRef(d.name);
+        		cModelPlugin.addSubmodel(dSubmodel);
+    			
+    			Compartment dCompartment = dModel.createCompartment(d.name + "_compartment");
+    			Port devicePort = new Port(d.name + "_port", level, version);
+    			devicePort.setParent(dCompartment);
+    			ReplacedElement re = cBasePlugin.createReplacedElement();
+    			re.setSubmodelRef(d.name + "_submodel");
+    			re.setPortRef(d.name + "_port");
+    			
+    			String partName = "DNA";
+    			ArrayList<Biopart> allParts = d.parts;
+    			Collections.sort(allParts, (Biopart a, Biopart b) -> {
+    				return a.position.getValue() > b.position.getValue() ? 1 : -1;
+    			});
+    			for (Biopart part : allParts) {
+    				partName += "_" + part.name;
+    			}
+    			dModel.createSpecies(partName, dCompartment);
+    			
+//        		for (MolecularSpecies ms : d.moleculeList) { /* Have it ignore DNA parts? */
+//    				createSpecies(ms, ms.name + "_molecule", dModel, dCompartment);
+//    			}
+    			
+    			for (MolecularSpecies ms : d.inputList) {
+    				setReplacement(ms, ms.name + "_input", d.name + "_submodel", dModel, dCompartment, level, version);
+    			}
+    			for (MolecularSpecies ms : d.outputList) {
+    				setReplacement(ms, ms.name + "_output", d.name + "_submodel", dModel, dCompartment, level, version);
+    			}
+    			
+//        		for (Rule r : d.ruleList) {
+//    				setRule(r, dModel, dCompartment);
+//    			}
+
     		}
+
     	}
-		
     	return doc;
     	
     }
