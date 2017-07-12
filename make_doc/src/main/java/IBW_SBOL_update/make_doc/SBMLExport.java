@@ -103,6 +103,8 @@ static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
     private static Species createSpecies(MolecularSpecies ms, String displayID, Model model, Compartment compartment) {
 		Species species = model.createSpecies(displayID, compartment);
 		if (ms.amount != null) species.setInitialAmount(ms.amount);
+		//create unit definition for any unit other than "item" (numebr of molecules) and mole. 
+		//Go through IBW predefined list of units, create unit definitions for those
 		if(ms.unit != null && model.findUnitDefinition(ms.unit) == null) model.createUnitDefinition(ms.unit);
     }
     
@@ -113,7 +115,7 @@ static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
 			
 			Species replacedSpecies = model.createSpecies(displayId, compartment);
 			Port speciesPort = new Port(ms.name + "_port", level, version);
-			speciesPort.setParent(replacedSpecies);
+			speciesPort.setIdRef(displayId);
 			
 			ReplacedElement reSpecies = speciesPlugin.createReplacedElement();
 			reSpecies.setSubmodelRef(submodelRef);
@@ -180,7 +182,7 @@ static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
     			
     			Compartment dCompartment = dModel.createCompartment(d.name + "_compartment");
     			Port devicePort = new Port(d.name + "_port", level, version);
-    			devicePort.setParent(dCompartment);
+//    			devicePort.setSBaseRef(dCompartment); SET ID REF
     			ReplacedElement re = cBasePlugin.createReplacedElement();
     			re.setSubmodelRef(d.name + "_submodel");
     			re.setPortRef(d.name + "_port");
@@ -193,7 +195,14 @@ static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
     			for (Biopart part : allParts) {
     				partName += "_" + part.name;
     			}
+    			//Give DNA name device name_DNA.
+    			//Create species for DNA part that appears in rule
     			dModel.createSpecies(partName, dCompartment);
+    			//Create map of each species and how many times it occurs on left and right hand sides.
+    			//If it appears equal numbers on left and right, its a modifier.
+    			//If it appears more on left than right, its a reactant. Stoichiometry is left - right.
+    			//Same for more on right than left.
+    			//Kinetic law is take forward rate times each of reactants you found, raised to the power of its stoichiometry. If it is bidirectional, incorporate backwards reaction too. Forward - reverse rate.
     			
 //        		for (MolecularSpecies ms : d.moleculeList) { /* Have it ignore DNA parts? */
 //    				createSpecies(ms, ms.name + "_molecule", dModel, dCompartment);
