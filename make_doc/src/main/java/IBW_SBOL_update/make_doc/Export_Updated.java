@@ -219,9 +219,14 @@ public class Export_Updated
     	
 //    	if (biocompilerModel.regions != null && !biocompilerModel.regions.isEmpty()) {
 //    		for (Region r : biocompilerModel.regions) {
-//    			ModuleDefinition region = document.createModuleDefinition(r.name, version);
-//    			convertCells(r.cells, region, document, version);
-//    			model.createModule(r.name + "_module", r.name);
+//				ModuleDefinition region = document.createModuleDefinition(r.name, version);
+//    			if (r.molecules != null && !r.molecules.isEmpty()) {
+//    				convertMolecules(r.molecules, region, document, version);
+//    			}
+//    			else {
+//        			convertCells(r.cells, region, document, version);
+//        			model.createModule(r.name + "_module", r.name);	
+//    			}
 //    		}
 //    	}
 /*    	else */if (biocompilerModel.cells != null && !biocompilerModel.cells.isEmpty()) {
