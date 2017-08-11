@@ -1,82 +1,141 @@
-package IBW_SBOL_update.make_doc;
+package roadblock.dataprocessing.export;
 
-import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
+import javax.swing.JOptionPane;
 import org.sbolstandard.core2.AccessType;
+import org.sbolstandard.core2.Component;
 import org.sbolstandard.core2.ComponentDefinition;
 import org.sbolstandard.core2.DirectionType;
 import org.sbolstandard.core2.FunctionalComponent;
 import org.sbolstandard.core2.Interaction;
+import org.sbolstandard.core2.MapsTo;
+import org.sbolstandard.core2.Module;
 import org.sbolstandard.core2.ModuleDefinition;
 import org.sbolstandard.core2.OrientationType;
 import org.sbolstandard.core2.RefinementType;
-import org.sbolstandard.core2.SBOLConversionException;
 import org.sbolstandard.core2.SBOLDocument;
 import org.sbolstandard.core2.SBOLValidationException;
 import org.sbolstandard.core2.Sequence;
 import org.sbolstandard.core2.SequenceAnnotation;
 import org.sbolstandard.core2.SequenceOntology;
+import org.sbolstandard.core2.TopLevel;
+import roadblock.emf.bioparts.Bioparts.BiocompilerCell;
+import roadblock.emf.bioparts.Bioparts.BiocompilerDevice;
+import roadblock.emf.bioparts.Bioparts.BiocompilerModel;
+import roadblock.emf.bioparts.Bioparts.Biopart;
+import roadblock.emf.ibl.Ibl.Cell;
+import roadblock.emf.ibl.Ibl.Device;
+import roadblock.emf.ibl.Ibl.Model;
+import roadblock.emf.ibl.Ibl.MolecularSpecies;
+import roadblock.emf.ibl.Ibl.Region;
+import roadblock.emf.ibl.Ibl.Rule;
 
 
-public class Export_Updated
-{
-	
-	static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
-	
-    public static void main( String[] args ) {
-    	
-    	//Manually populating data structures for makeSBOLDocument to read in
-        ArrayList<Biopart> parts1 = new ArrayList<Biopart>();
-        Biopart cell1part1 = new Biopart(2, "FirstCellFirstPart", "PROMOTER", "", 1, 1, "aa");
-        Biopart cell1part2 = new Biopart(4, "FirstCellSecondPart", "GENE", "", 1, 2, "cccc");
-        Biopart cell1part3 = new Biopart(6, "FirstCellFinalPart", "", "Random_url", 0, 3, "tttccc");
-        parts1.add(cell1part1);
-        parts1.add(cell1part2);
-        parts1.add(cell1part3);
-        Device d1 = new Device(parts1, "Device1");
-        ArrayList<Device> devices1 = new ArrayList<Device>();
-        devices1.add(d1);
-        biocompilerModel.addCell("FirstCell", devices1);
-        
-        ArrayList<Biopart> parts2 = new ArrayList<Biopart>();
-        Biopart cell2part1 = new Biopart(2, "SecondCellFirstPart", "TERMINATOR", "", 0, 1, "at");
-        Biopart cell2part2 = new Biopart(2, "SecondCellSecondPart", "random", "", 0, 2, "gc");
-        parts2.add(cell2part1);
-        parts2.add(cell2part2);
-        Device d2 = new Device(parts2, "Device2");
-        ArrayList<Device> devices2 = new ArrayList<Device>();
-        devices2.add(d2);
-        biocompilerModel.addCell("SecondCell", devices2);
-        
-        //Attempt to create SBOL document and save it to the local workspace
-        try {
-			SBOLDocument doc = makeSBOLDocument();
-			doc.write("Updated Export Test SBOL Document");
-		} catch (SBOLValidationException e) {
-			System.out.println("SBOLValidationException Thrown");
-			e.printStackTrace();
-		} catch (SBOLConversionException e) {
-			System.out.println("SBOLConversionException Thrown");
-			e.printStackTrace();
-		} catch (IOException e) {
-			System.out.println("IOException Thrown");
-			e.printStackTrace();
+public class SBOL_Export {
+    
+	//Helper marker for uniqifying display IDs via incrementation
+	private static int ID = 1;
+	//Version of components being built
+	private static String version = "1";
+
+	/**
+	 * This helper function turns a string into an SBOL-compatible ID.
+	 * 
+	 * @param displayId is the ID to be made SBOL-compatible if in an improper format / null
+	 * @return the fixed displayId
+	 */
+	private static String fixDisplayID(String displayId) {
+		if(displayId == null || displayId.equals("")) return "Unnamed" + (ID++);
+		int index = Math.max(displayId.lastIndexOf('/'), Math.max(displayId.lastIndexOf('#'), displayId.lastIndexOf(':')));
+		if (index != -1) displayId = displayId.substring(index + 1);
+		displayId = displayId.replaceAll("[^a-zA-Z0-9_]", "_");
+		displayId = displayId.replace(" ", "_");
+		if (Character.isDigit(displayId.charAt(0))) { 
+			displayId = "_" + displayId;
 		}
-    }
-    
-    /**
-     * Helper function to extract the sequence in String form from a biopart.
-     * 
-     * @param bp
-     * @return sequence
-     */
-    private static String getSequence(Biopart bp) {
-    	return bp.sequence;
-    }
-    
+		return displayId;
+	}
+	
+	/**
+	 * This function creates or finds a component definition for a MolecularSpecies given certain parameters, which include the
+	 * MolecularSpecies' bioType that is translated to a SBO type. 
+	 * 
+	 * @param doc is the overall SBOL model to fetch/create the component definition from
+	 * @param displayID is the ID to give to the component definition
+	 * @param bioType is the type of the component definition to be created
+	 * @param wasDerived is an optional string specifying the originating URI of the component definition
+	 * @param reportMissing is a boolean to note if no existing component definition is found for wasDerived
+	 * @return the fetched or newly created component definition
+	 * @throws Exception
+	 */
+	private static ComponentDefinition createCompDef(SBOLDocument doc, String displayID, String bioType, 
+			URI type, String wasDerived, Boolean reportMissing) throws Exception {
+		URI role = null;
+		if (type == null) {
+			if (bioType != null) {
+		    	switch (bioType) {
+					case "MOLECULE": { type = ComponentDefinition.SMALL_MOLECULE; break; }
+					case "COMPLEX": { type = ComponentDefinition.COMPLEX; break; }
+					case "RIBOSOME": { type = ComponentDefinition.COMPLEX; break; } //ANYTHING FOR RIBOSOME?
+					case "PROTEIN": { type = ComponentDefinition.PROTEIN; break; }
+					case "DNA": { type = ComponentDefinition.DNA; break; }
+					case "RNA": { type = ComponentDefinition.RNA; break; }
+					case "GENE": { type = ComponentDefinition.DNA; role = SequenceOntology.GENE; break; }
+					case "INTEGER": { throw new Exception("Integer type not allowed in molecule " + displayID); }
+					case "RATE": { throw new Exception("Rate type not allowed in molecule " + displayID); }
+					case "RBS": { type = ComponentDefinition.DNA; role = SequenceOntology.RIBOSOME_ENTRY_SITE; break; }
+					case "TERMINATOR": { type = ComponentDefinition.DNA; role = SequenceOntology.TERMINATOR; break; }
+					case "CLONINGSITE": { type = ComponentDefinition.DNA; role = URI.create("http://identifiers.org/so/SO:0001687"); break; }
+					default: { type = ComponentDefinition.SMALL_MOLECULE; break; }
+		    	}
+			}
+			else {
+				type = ComponentDefinition.SMALL_MOLECULE;
+			}
+		}
+    	
+    	URI derivedURI = null;
+		if(wasDerived != null && wasDerived != "") {
+			try {
+				derivedURI = new URI(wasDerived);
+				Set<TopLevel> fetch = doc.getByWasDerivedFrom(derivedURI);
+				for(TopLevel tl : fetch) {
+					if(tl instanceof ComponentDefinition) {
+						return (ComponentDefinition) tl;
+					}
+				}
+			} catch (URISyntaxException e) {
+				System.out.println("Incorrect URI format for molecule " + displayID);
+				e.printStackTrace();
+			}
+		}
+
+		if (reportMissing) {
+			System.out.println("Component " + displayID + " was unable to be found.");
+		}
+		
+		int uniqify = 1;
+		String newDisplayID = displayID;
+		while (doc.getComponentDefinition(newDisplayID, version) != null) {
+			newDisplayID = displayID + uniqify;
+			uniqify++;
+		}
+		displayID = newDisplayID;
+		
+    	ComponentDefinition def = doc.createComponentDefinition(displayID, version, type);
+    	if (derivedURI != null) def.addWasDerivedFrom(derivedURI);
+    	if (role != null) def.addRole(role);
+		return def;
+	}
+	
     /**
      * This function adds a subcomponent definition, subcomponent, and sequence annotation to a component definition
      * it takes in with specified parameters.
@@ -87,159 +146,307 @@ public class Export_Updated
      * @param sequenceStart
      * @param sequenceEnd
      * @param version
-     * @throws SBOLValidationException
+     * @throws Exception 
      */
     private static void addSubcomponent(ComponentDefinition compDef, SBOLDocument document, Biopart part,
-    	int sequenceStart, int sequenceEnd, String version) throws SBOLValidationException {
+    	int direction, int sequenceStart, int sequenceEnd, String wasDerived) throws Exception {
 
-    	OrientationType orientation = (part.direction == 1 ? OrientationType.INLINE : OrientationType.REVERSECOMPLEMENT);
-    	//Ensure displayID is unique using counter
-    	SequenceAnnotation curAnnotation = compDef.createSequenceAnnotation(part.name + "_annotation", "range", sequenceStart, sequenceEnd, orientation);
+    	String partName = fixDisplayID(part.getName());
+    	ComponentDefinition subCompDef = createCompDef(document, partName, null, ComponentDefinition.DNA, wasDerived, true);
+    	partName = subCompDef.getDisplayId();
+    	
+    	OrientationType orientation = (direction == 1 ? OrientationType.INLINE : OrientationType.REVERSECOMPLEMENT);
+    	SequenceAnnotation curAnnotation = compDef.createSequenceAnnotation(partName + "_annotation", "range", sequenceStart, sequenceEnd, orientation);
     	
     	URI partType;
     	//Use the predefined SequenceOntology constant
-    	switch (part.biologicalFunction) {
+    	switch (part.getBiologicalFunction()) {
     		case "PROMOTER": { partType = SequenceOntology.PROMOTER; break; }
     		case "GENE": { partType = SequenceOntology.CDS; break; }
     		case "RBS": { partType = SequenceOntology.RIBOSOME_ENTRY_SITE; break; }
     		case "TERMINATOR": { partType = SequenceOntology.TERMINATOR; break; }
     		default: { partType = URI.create("http://identifiers.org/so/SO:0000110"); break; }
     	}
-
-    	ComponentDefinition subCompDef = document.createComponentDefinition(part.name, version, ComponentDefinition.DNA);
     	subCompDef.addRole(partType);
-    	Sequence partSequence = document.createSequence(part.name + "_sequence", version, part.sequence.toLowerCase(), Sequence.IUPAC_DNA);
+    	Sequence partSequence = document.createSequence(partName + "_sequence", part.getSequence().toLowerCase(), Sequence.IUPAC_DNA);
     	subCompDef.addSequence(partSequence);
-    	if (part.accessionURL != null && part.accessionURL != "") {
-        	subCompDef.addWasDerivedFrom(URI.create(part.accessionURL));
-    	}
     	
-    	compDef.createComponent(part.name, AccessType.PRIVATE, part.name, version);
-    	curAnnotation.setComponent(part.name);
+    	compDef.createComponent(partName, AccessType.PRIVATE, partName);
+    	curAnnotation.setComponent(partName);
 
     }
 
-//    private static void convertMolecules(ArrayList<MolecularSpecies> molecules, ModuleDefinition parent, SBOLDocument document, String version) {
-//		for (MolecularSpecies ms : molecules) { 
-//			if (document.getComponentDefinition(ms.name, version) == null) {
-//				ComponentDefinition species = document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
-//			}
-//			parent.createFunctionalComponent(ms.name + "_molecule", AccessType.PRIVATE, ms.name, version, DirectionType.NONE);
-//		}
-//    }
-    
-    private static void convertDevices(ArrayList<Device> Devices, ModuleDefinition parent, SBOLDocument document, String version) throws SBOLValidationException {
-		for (Device d : Devices){
-			ModuleDefinition device = document.createModuleDefinition(d.name, version);
-			
-			ArrayList<Biopart> allParts = d.parts;
-			Collections.sort(allParts, (Biopart a, Biopart b) -> {
-				return a.position.getValue() > b.position.getValue() ? 1 : -1;
-			});
-			
-			String partListID = d.name + "_parts"; 
-			ComponentDefinition partList = document.createComponentDefinition(partListID, version, ComponentDefinition.DNA);
-    		partList.addRole(SequenceOntology.ENGINEERED_REGION);
-			
-			int sequenceStart = 1;
-			//Create a subcomponent corresponding to each part in the current cell
-			for (Biopart part : allParts) {
-				addSubcomponent(partList, document, part, sequenceStart, sequenceStart + part.sequenceLength - 1, version);
-				//Update the start index to reflect the next part we're iterating through
-				sequenceStart = sequenceStart + part.sequenceLength;
+    /**
+     * This function creates ComponentDefinitions from and instantiates a group of MolecularSpecies in a ModuleDefinition/
+     * 
+     * @param moleculeList is a List of MolecularSpecies to be converted.
+     * @param parent is the ModuleDefinition where the FunctionalComponents will be instantiated.
+     * @param document is the SBOL model where the ComponentDefinitions will be created.
+     * @throws Exception
+     */
+    private static void convertMolecules(List<MolecularSpecies> moleculeList, ModuleDefinition parent, SBOLDocument document) throws Exception {
+		for (MolecularSpecies ms : moleculeList) {
+			String molecularID = fixDisplayID(ms.getDisplayName());
+			if (document.getComponentDefinition(molecularID, version) == null) {
+				createCompDef(document, molecularID, ms.getBiologicalType(), null, ms.getURI(), false);
 			}
-		
-			//Store the overall nucleotide sequence in the overall component definition of the cell
-			String stringSeq = partList.getImpliedNucleicAcidSequence();
-			Sequence wholeSequence = document.createSequence(d.name + "_sequence", version, stringSeq, Sequence.IUPAC_DNA);
-			partList.addSequence(wholeSequence);
-			
-			device.createFunctionalComponent(partListID, AccessType.PRIVATE, partListID, version, DirectionType.NONE); /* private or public access?*/
-			
-//			convertMolecules(d.moleculeList, device, document, version);
-//    		for (MolecularSpecies ms : d.inputList) {
-//				if (document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
-//				String inputName = ms.name + "_input";
-//				FunctionalComponent f = device.createFunctionalComponent(inputName, AccessType.PUBLIC, ms.name, version, DirectionType.IN);
-//				f.createMapsTo(ms.name, RefinementType.VERIFYIDENTICAL, ms.name + "_molecule", ms.name + "_input");
-//				Interaction in = device.createInteraction(inputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000168"));
-//				in.createParticipation(ms.name + "_modifier", inputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000019"));
-//				in.createParticipation(partListID + "_modified", partListID, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000644"));
-//			}
-//    		for (MolecularSpecies ms : d.outputList) {
-//				if (document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
-//				String outputName = ms.name + "_output";
-//				FunctionalComponent f = device.createFunctionalComponent(outputName, AccessType.PUBLIC, ms.name, version, DirectionType.OUT);
-//				f.createMapsTo(ms.name, RefinementType.VERIFYIDENTICAL, ms.name + "_molecule", outputName);
-//				Interaction out = device.createInteraction(outputName,  URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000589"));
-//				out.createParticipation(ms.name + "_product", outputName, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000011"));
-//				out.createParticipation(partListID + "_template", partListID, URI.create("http://www.ebi.ac.uk/sbo/main/SBO:0000645"));
-//			}
-			
-			//Molecule list of cell includes DNA
-			
-			parent.createModule(d.name + "_module", d.name, version);
-		}
-    }
-    
-    private static void convertCells(ArrayList<Cell> Cells, ModuleDefinition parent, SBOLDocument document, String version) throws SBOLValidationException {
-		for (Cell c : Cells) {
-    		
-			ModuleDefinition cell = document.createModuleDefinition(c.name, version);
-		
-//			for (MolecularSpecies ms : c.moleculeList) { /* Have it ignore DNA parts? */
-//				if(document.getComponentDefinition(ms.name, version) == null) document.createComponentDefinition(ms.name, version, TYPE); /* Type from biotype? */
-//				cell.createFunctionalComponent(ms.name + "_molecule", AccessType.PRIVATE, ms.name, DirectionType.NONE);
-//			}
-		
-			convertDevices(c.devices, cell, document, version);
-			parent.createModule(c.name + "_module", c.name);
+			parent.createFunctionalComponent(molecularID, AccessType.PRIVATE, molecularID, version, DirectionType.NONE);
 		}
     }
     
     /**
-     * This function reads information from an IBW EMF model and creates a SBOL document out of it.
+     * This function parses the input and output lists of a group of devices, mapping the molecules to the parent cell molecules
+     * and creating Interactions between the input/output molecules and the DNA component of the device. The subcomponents of the
+     * device are gathered from the biocompiled model and aggregated into one component definition.
      * 
-     * @return SBOLDocument
-     * @throws SBOLValidationException
+     * @param devices is a List of Devices.
+     * @param cMoleculeList is a List of MolecularSpecies in the Devices' parent cell.
+     * @param parent is the ModuleDefinition corresponding to the parent cell.
+     * @param document is the overall SBOL model.
+     * @param bCell is the BiocompilerCell corresponding to the Cell from which the List of Devices was obtained.
+     * @throws Exception
      */
-    public static SBOLDocument makeSBOLDocument() throws SBOLValidationException {
-    	//Placeholder namespace and version. Will implement user prompt later as a text field.
-    	String namespace = "file://dummy.org";
-    	String version = "1";
+    private static void convertDevices(List<Device> devices, List<MolecularSpecies> cMoleculeList, ModuleDefinition parent, SBOLDocument document, BiocompilerCell bCell) throws Exception {
+		for (Device d : devices){
+			String deviceName = fixDisplayID(d.getDisplayName());
+			ModuleDefinition device = document.createModuleDefinition(deviceName, version);
+			Module module = parent.createModule(deviceName + "_module", deviceName, version);
 
-    	SBOLDocument document = new SBOLDocument();
+			String partListID = deviceName + "_parts"; 
+			ComponentDefinition partList = createCompDef(document, partListID, null, ComponentDefinition.DNA, null, false);
+    		partList.addRole(SequenceOntology.ENGINEERED_REGION);
+			device.createFunctionalComponent(partListID, AccessType.PRIVATE, partListID, DirectionType.NONE);
+			
+    		if (bCell != null) {
+    			for (BiocompilerDevice bDevice : bCell.getDevices()) {
+    				if (bDevice.getName().equals(d.getDisplayName())) {
+    					int direction = bDevice.getDirection().value();
+    					ArrayList<Biopart> allParts = new ArrayList<Biopart>(bDevice.getParts());
+    					Collections.sort(allParts, new Comparator<Biopart>() {
+    						public int compare(Biopart a, Biopart b) {
+    							return a.getPosition().value() > b.getPosition().value() ? 1 : -1;
+    						}
+    					});    				
+    				
+    					int sequenceStart = 1;
+    					//Create a subcomponent corresponding to each part in the current cell
+    					for (Biopart part : allParts) {
+    						String wasDerived = "";
+    						for (MolecularSpecies mPart : cMoleculeList) {
+    							if (mPart.getDisplayName().equals(part.getName())) {
+    								wasDerived = mPart.getURI();
+    								break;
+    							}
+    						}
+    						int seqLength = part.getSequence().length();
+    						addSubcomponent(partList, document, part, direction, sequenceStart, sequenceStart + seqLength - 1, wasDerived);
+    						//Update the start index to reflect the next part we're iterating through
+    						sequenceStart = sequenceStart + seqLength;
+    					}
+    			
+    					//Store the overall nucleotide sequence in the overall component definition of the cell
+    					String stringSeq = partList.getImpliedNucleicAcidSequence();
+    					Sequence wholeSequence = document.createSequence(deviceName + "_sequence", version, stringSeq, Sequence.IUPAC_DNA);
+    					partList.addSequence(wholeSequence);
+    					break;
+    				}
+    			}
+    		}
+
+    		for (MolecularSpecies ms : d.getInputList()) {
+    			String molecularID = fixDisplayID(ms.getDisplayName());
+				String inputName = molecularID + "_input";
+				FunctionalComponent f = device.createFunctionalComponent(inputName, AccessType.PUBLIC, molecularID, version, DirectionType.IN);
+				module.createMapsTo(molecularID, RefinementType.VERIFYIDENTICAL, molecularID, f.getDisplayId());
+				Interaction in = device.createInteraction(molecularID + "_interaction", URI.create("http://identifiers.org/biomodels.sbo/SBO:0000168"));
+				in.createParticipation(molecularID + "_modifier", molecularID, URI.create("http://identifiers.org/biomodels.sbo/SBO:0000019"));
+				in.createParticipation(partListID + "_modified", partListID, URI.create("http://identifiers.org/biomodels.sbo/SBO:0000644"));
+			}
+    		for (MolecularSpecies ms : d.getOutputList()) {
+    			String molecularID = fixDisplayID(ms.getDisplayName());
+				String outputName = molecularID + "_output";
+				FunctionalComponent f = device.createFunctionalComponent(outputName, AccessType.PUBLIC, molecularID, version, DirectionType.OUT);
+				module.createMapsTo(molecularID, RefinementType.VERIFYIDENTICAL, molecularID, f.getDisplayId());
+				Interaction out = device.createInteraction(outputName + "_interaction",  URI.create("http://identifiers.org/biomodels.sbo/SBO:0000589"));
+				out.createParticipation(molecularID + "_product", molecularID, URI.create("http://identifiers.org/biomodels.sbo/SBO:0000011"));
+				out.createParticipation(partListID + "_template", partListID, URI.create("http://identifiers.org/biomodels.sbo/SBO:0000645"));
+    		}
+		}
+    }
+    
+    /**
+     * This function parses and instantiates each MoleculeList, RuleList, and DeviceList of a group of Cells.
+     * 
+     * @param cells is a List of Cells.
+     * @param parent is the ModuleDefinition corresponding to the either the Region or Model where the List of Cells was obtained.
+     * @param document is the SBOL model where the ComponentDefinitions will be created.
+     * @param biocompilerModel is the parent of BiocompilerCells, which are related to Cells.
+     * @throws Exception
+     */
+    private static void convertCells(List<Cell> cells, ModuleDefinition parent, SBOLDocument document, BiocompilerModel biocompilerModel) throws Exception {
+		for (Cell c : cells) {
+    		String cellName = fixDisplayID(c.getDisplayName());
+			ModuleDefinition cell = document.createModuleDefinition(cellName, version);
+			parent.createModule(cellName + "_module", cellName);
+
+			BiocompilerCell bCell = null;
+			if(biocompilerModel != null) {
+				for (BiocompilerCell iterateCell : biocompilerModel.getCells()) {
+					if (iterateCell.getName().equals(c.getDisplayName())) {
+						bCell = iterateCell;
+					}
+				}
+			}
+			
+			HashSet<String> cellMolecules = new HashSet<String>();
+			//Create all component definitions for cell molecules
+			for (MolecularSpecies ms : c.getMoleculeList()) {
+				String molecularID = fixDisplayID(ms.getDisplayName());
+				if (cellMolecules.contains(molecularID)) continue;
+				cellMolecules.add(molecularID);
+				String type = ms.getBiologicalType();
+				createCompDef(document, molecularID, type, null, ms.getURI(), false);
+				if (type == null || !type.equals("DNA")) {
+					cell.createFunctionalComponent(molecularID, AccessType.PUBLIC, molecularID, version, DirectionType.NONE);
+					System.out.println("cell instance created for: " + molecularID);
+				}
+			}
+	
+			convertDevices(c.getDeviceList(), c.getMoleculeList(), cell, document, bCell);
+			
+			//Instantiate DNA components that haven't been instantiated in a device
+			for (MolecularSpecies ms : c.getMoleculeList()) {
+				String molecularID = fixDisplayID(ms.getID());
+				Boolean instantiated = false;
+				if (ms.getBiologicalType().equals("DNA")) {
+					for (Module device : cell.getModules()) {
+						for (FunctionalComponent partList : device.getDefinition().getFunctionalComponents()) {
+							for (Component subPart : partList.getDefinition().getComponents()) {
+								if (subPart.getDisplayId().equals(molecularID)) instantiated = true;
+							}
+						}
+					}
+					if (!instantiated) cell.createFunctionalComponent(molecularID, AccessType.PRIVATE, molecularID, DirectionType.NONE);	
+				}
+			}
+			
+			//Map rules to interactions. If a DNA component appears in a rule but has not been instantiated in the cell,
+			//it has already been defined in a device, which is not allowed.
+			for (Rule r : c.getRuleList()) {
+				Interaction interaction = cell.createInteraction(fixDisplayID(r.getDisplayName()), URI.create("http://identifiers.org/biomodels.sbo/SBO:0000176"));
+				HashSet<String> reactants = new HashSet<String>();
+				for (MolecularSpecies reactant : r.getLeftHandSide()) {
+					if (reactants.contains(reactant.getDisplayName())) continue;
+					reactants.add(reactant.getDisplayName());
+					String molecularID = fixDisplayID(reactant.getDisplayName());
+					interaction.createParticipation(molecularID + "_reactant", molecularID, URI.create("http://identifiers.org/biomodels.sbo/SBO:0000010"));
+					String type = reactant.getBiologicalType();
+					if (type != null && type.equals("DNA")) {
+						Boolean instantiated = false;
+						for (FunctionalComponent cellPart : cell.getFunctionalComponents()) {
+							URI reactantURI = null;
+							try {
+								reactantURI = new URI(reactant.getURI());
+							} catch (URISyntaxException e) {
+								System.out.println("URI unable to be generated for molecule " + cellPart.getName());
+								e.printStackTrace();
+							}
+							if(cellPart.getIdentity() == reactantURI) instantiated = true;
+						}
+						if (!instantiated) throw new Exception("The DNA part " + molecularID + " appears in both a cell rule and a device part.");
+					}
+				}
+				HashSet<String> products = new HashSet<String>();
+				for (MolecularSpecies product : r.getRightHandSide()) {
+					if (products.contains(product.getDisplayName())) continue;
+					products.add(product.getDisplayName());
+					String molecularID = fixDisplayID(product.getDisplayName());
+					interaction.createParticipation(molecularID + "_product", molecularID, URI.create("http://identifiers.org/biomodels.sbo/SBO:0000011"));
+					String type = product.getBiologicalType();
+					if (type != null && type.equals("DNA")) {
+						Boolean instantiated = false;
+						for (FunctionalComponent cellPart : cell.getFunctionalComponents()) {
+							URI productURI = null;
+							try {
+								productURI = new URI(product.getURI());
+							} catch (URISyntaxException e) {
+								System.out.println("URI unable to be generated for molecule " + cellPart.getName());
+								e.printStackTrace();
+							}
+							if(cellPart.getIdentity() == productURI) instantiated = true;
+						}
+						if (!instantiated) throw new Exception("The DNA part " + molecularID + " appears in both a cell rule and a device part.");
+					}
+				}
+			}
+		}
+    }
+    
+    /**
+     * This function parses and instantiates the MoleculeList and/or the CellList of a group of Region objects.
+     * 
+     * @param regions is a List of Regions.
+     * @param parent is the ModuleDefinition corresponding to the Model where the List of Regions was obtained.
+     * @param document is the SBOL model where the ComponentDefinitions of objects within a Region will be created.
+     * @param biocompilerModel is the parent of BiocompilerCells, which are related to Cells.
+     * @throws Exception
+     */
+    private static void convertRegions(List<Region> regions, ModuleDefinition parent, SBOLDocument document, BiocompilerModel biocompilerModel) throws Exception {
+
+    	for (Region r : regions) {
+			String regionID = fixDisplayID(r.getDisplayName());
+			ModuleDefinition region = document.createModuleDefinition(regionID, version);
+			List<MolecularSpecies> moleculeList = r.getMoleculeList();
+			if (moleculeList != null && !moleculeList.isEmpty()) {
+				convertMolecules(moleculeList, region, document);
+			}
+			else {
+    			convertCells(r.getCellList(), region, document, biocompilerModel);
+    			parent.createModule(regionID + "_module", regionID);
+			}
+		}
+    }
+    
+    /**
+     * This function reads the information from an EMF model and an optional BiocompilerModel into a SBOL document.
+     * 
+     * @param model is a structure storing hierarchical and functional information
+     * @param biocompilerModel is a structure storing biocompilation information
+     * @param namespace is the namespace used for the SBOL document.
+     * @return is the created SBOL document.
+     * @throws Exception
+     */
+    public static SBOLDocument makeSBOLDocument(Model model, BiocompilerModel biocompilerModel, String namespace) throws Exception {
     	
+    	SBOLDocument document = new SBOLDocument();
+    	document.setDefaultURIprefix(namespace);
+
     	document.setComplete(true); 		//Throw exceptions when URIs are incorrect
     	document.setCreateDefaults(true);	//Default components and/or functional component instances are created when not present
     	document.setTypesInURIs(false);		//Types aren't inserted into top-level identity URIs when they are created
-    	document.setDefaultURIprefix(namespace);
-    	
-    	ModuleDefinition model = document.createModuleDefinition(biocompilerModel.name, version);
-    	
-//    	if (biocompilerModel.regions != null && !biocompilerModel.regions.isEmpty()) {
-//    		for (Region r : biocompilerModel.regions) {
-//				ModuleDefinition region = document.createModuleDefinition(r.name, version);
-//    			if (r.molecules != null && !r.molecules.isEmpty()) {
-//    				convertMolecules(r.molecules, region, document, version);
-//    			}
-//    			else {
-//        			convertCells(r.cells, region, document, version);
-//        			model.createModule(r.name + "_module", r.name);	
-//    			}
-//    		}
-//    	}
-/*    	else */if (biocompilerModel.cells != null && !biocompilerModel.cells.isEmpty()) {
-    		convertCells(biocompilerModel.cells, model, document, version);
+
+    	ModuleDefinition modelDef = document.createModuleDefinition(fixDisplayID(model.getDisplayName()));
+
+    	List<Region> regions = model.getRegionList();
+    	List<Cell> cells = model.getCellList();
+    	List<Device> devices = model.getDeviceList();
+    	List<MolecularSpecies> molecules = model.getMoleculeList();
+
+    	if (regions != null && !regions.isEmpty()) {
+    		convertRegions(regions, modelDef, document, biocompilerModel);
     	}
-//    	else if (biocompilerModel.devices != null && !biocompilerModel.devices.isEmpty()) {
-//    		convertDevices(biocompilerModel.devices, model, document, version);
-//    	}
-//    	else {
-//    		convertMolecules(biocompilerModel.molecules, model, document, version);
-//    	}
-//    	
+    	else if (cells != null && !cells.isEmpty()) {
+    		convertCells(cells, modelDef, document, biocompilerModel);
+    	}
+    	else if (devices != null && !devices.isEmpty()) {
+    		convertDevices(devices, null, modelDef, document, null);
+    	}
+    	else {
+    		convertMolecules(molecules, modelDef, document);
+    	}
+    	
+    	ID = 1;
     	return document;
     }
-
+	
 }
