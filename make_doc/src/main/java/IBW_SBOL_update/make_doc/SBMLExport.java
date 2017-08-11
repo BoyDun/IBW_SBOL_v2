@@ -1,229 +1,314 @@
-package IBW_SBOL_update.make_doc;
+package roadblock.dataprocessing.export;
 
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Collections;
-
-import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.xml.stream.XMLStreamException;
+import java.util.List;
 
 import org.sbml.jsbml.Compartment;
+import org.sbml.jsbml.KineticLaw;
 import org.sbml.jsbml.Model;
 import org.sbml.jsbml.Reaction;
 import org.sbml.jsbml.SBMLDocument;
-import org.sbml.jsbml.SBMLError;
-import org.sbml.jsbml.SBMLException;
-import org.sbml.jsbml.SBMLWriter;
 import org.sbml.jsbml.SBase;
 import org.sbml.jsbml.Species;
+import org.sbml.jsbml.SpeciesReference;
+import org.sbml.jsbml.Unit;
 import org.sbml.jsbml.UnitDefinition;
 import org.sbml.jsbml.ext.comp.CompConstants;
 import org.sbml.jsbml.ext.comp.CompModelPlugin;
 import org.sbml.jsbml.ext.comp.CompSBMLDocumentPlugin;
 import org.sbml.jsbml.ext.comp.CompSBasePlugin;
 import org.sbml.jsbml.ext.comp.Port;
-import org.sbml.jsbml.ext.comp.ReplacedBy;
 import org.sbml.jsbml.ext.comp.ReplacedElement;
 import org.sbml.jsbml.ext.comp.Submodel;
 
-public class SBMLExport {
-static BiocompilerModel biocompilerModel = new BiocompilerModel("Model");
-	
-    public static void main( String[] args ) {
-    	
-    	//Manually populating data structures for makeSBOLDocument to read in
-        ArrayList<Biopart> parts1 = new ArrayList<Biopart>();
-        Biopart cell1part1 = new Biopart(2, "FirstCellFirstPart", "PROMOTER", "", 1, 1, "aa");
-        Biopart cell1part2 = new Biopart(4, "FirstCellSecondPart", "GENE", "", 1, 2, "cccc");
-        Biopart cell1part3 = new Biopart(6, "FirstCellFinalPart", "", "Random_url", 0, 3, "tttccc");
-        parts1.add(cell1part1);
-        parts1.add(cell1part2);
-        parts1.add(cell1part3);
-        Device d1 = new Device(parts1, "Device1");
-        ArrayList<Device> devices1 = new ArrayList<Device>();
-        devices1.add(d1);
-        biocompilerModel.addCell("FirstCell", devices1);
-        
-        ArrayList<Biopart> parts2 = new ArrayList<Biopart>();
-        Biopart cell2part1 = new Biopart(2, "SecondCellFirstPart", "TERMINATOR", "", 0, 1, "at");
-        Biopart cell2part2 = new Biopart(2, "SecondCellSecondPart", "random", "", 0, 2, "gc");
-        parts2.add(cell2part1);
-        parts2.add(cell2part2);
-        Device d2 = new Device(parts2, "Device2");
-        ArrayList<Device> devices2 = new ArrayList<Device>();
-        devices2.add(d2);
-        biocompilerModel.addCell("SecondCell", devices2);
-        
-        //Attempt to create SBML document and save it to the local workspace
-        try {
-			SBMLDocument doc = makeSBMLDocument();
-//			System.out.println(doc.checkConsistency());
-//			System.out.println(doc.getListOfErrors()); //Which one is right error checking?
-        	JFrame frame = new JFrame();
-        	int choice = JOptionPane.showConfirmDialog(
-        		    frame,
-        		    "Do you want to flatten the exported SBML document?",
-        		    "SBML Flattening",
-        		    JOptionPane.YES_NO_OPTION);
-        	frame.dispose();
-        	if (choice == JOptionPane.YES_OPTION) {};
-        	SBMLWriter writer = new SBMLWriter();
-        	writer.writeSBMLToFile(doc, "Test SBML Document");
-		} catch (SBMLException e) {
-			System.out.println("SBMLException Thrown");
-			e.printStackTrace();
-		} catch (FileNotFoundException e) {
-			System.out.println("FileNotFoundException Thrown");
-			e.printStackTrace();
-		} catch (XMLStreamException e) {
-			System.out.println("XMLStreamException Thrown");
-			e.printStackTrace();
-		}
-    }
+import roadblock.emf.ibl.Ibl.Cell;
+import roadblock.emf.ibl.Ibl.Device;
+import roadblock.emf.ibl.Ibl.FlatModel;
+import roadblock.emf.ibl.Ibl.MolecularSpecies;
+import roadblock.emf.ibl.Ibl.Region;
+import roadblock.emf.ibl.Ibl.Rule;
+
+public class SBML_Export {
     
+	//Helper marker for uniqifying display IDs via incrementation
+	private static int ID = 1;
+	//SBML level
+	private static int level = 3;
+	//Version of components being created
+	private static int version = 1;
+	
+	/**
+	 * This helper function turns a string into an SBOL-compatible ID.
+	 * 
+	 * @param displayId is the ID to be made SBOL-compatible if in an improper format / null
+	 * @return the fixed displayId
+	 */
+	private static String fixDisplayID(String displayId) {
+		if(displayId == null || displayId.equals("")) return "Unnamed" + (ID++);
+		int index = Math.max(displayId.lastIndexOf('/'), Math.max(displayId.lastIndexOf('#'), displayId.lastIndexOf(':')));
+		if (index != -1) displayId = displayId.substring(index + 1);
+		displayId = displayId.replaceAll("[^a-zA-Z0-9_]", "_");
+		displayId = displayId.replace(" ", "_");
+		if (Character.isDigit(displayId.charAt(0))) { 
+			displayId = "_" + displayId;
+		}
+		return displayId;
+	}
+	
+	/**
+	 * 
+	 * @param doc is the SBML document from which the plugin is created.
+	 * @return the created plugin.
+	 */
     private static CompSBMLDocumentPlugin getCompDocPlugin(SBMLDocument doc) {
 		CompSBMLDocumentPlugin compDoc = new CompSBMLDocumentPlugin(doc);
 		doc.addExtension(CompConstants.namespaceURI, compDoc);
 		return compDoc;
     }
     
+    /**
+     * 
+     * @param model is the model from which the plugin is created.
+     * @return the created plugin.
+     */
     private static CompModelPlugin getCompModelPlugin(Model model) {
     	CompModelPlugin compModel = new CompModelPlugin(model);
     	model.addExtension(CompConstants.namespaceURI, compModel);
     	return compModel;
     }
     
+    /**
+     * 
+     * @param sb is the SBML base object from which the plugin is created.
+     * @return the created plugin.
+     */
     private static CompSBasePlugin getCompSBasePlugin(SBase sb) {
     	CompSBasePlugin compBase = new CompSBasePlugin(sb);
     	sb.addExtension(CompConstants.namespaceURI, compBase);
     	return compBase;
     }
     
-    private static Species createSpecies(MolecularSpecies ms, String displayID, Model model, Compartment compartment) {
-		Species species = model.createSpecies(displayID, compartment);
-		if (ms.amount != null) species.setInitialAmount(ms.amount);
-		//create unit definition for any unit other than "item" (numebr of molecules) and mole. 
-		//Go through IBW predefined list of units, create unit definitions for those
-		if(ms.unit != null && model.findUnitDefinition(ms.unit) == null) model.createUnitDefinition(ms.unit);
+    private static void createUnits(Model m) {
+    	//ADD UNITS
+    	UnitDefinition ud1 = m.createUnitDefinition("M");
+    	ud1.addUnit("");
+    	UnitDefinition ud2 = m.createUnitDefinition("mM");
+    	Unit u2 = ud2.createUnit();
+    	u2.setId("");
+    	UnitDefinition ud3 = m.createUnitDefinition("uM");
+    	Unit u3 = ud3.createUnit();
+    	u3.setId("");
+    	UnitDefinition ud4 = m.createUnitDefinition("nM");
+    	Unit u4 = ud4.createUnit();
+    	u4.setId("");
+    	UnitDefinition ud5 = m.createUnitDefinition("pM");
+    	Unit u5 = ud5.createUnit();
+    	u5.setId("");
+    	UnitDefinition ud6 = m.createUnitDefinition("fM");
+    	Unit u6 = ud6.createUnit();
+    	u6.setId("");
+    	UnitDefinition ud7 = m.createUnitDefinition("MOLECULE");
+    	ud7.addUnit("item");
     }
     
-    private static void setReplacement(MolecularSpecies ms, String displayId, String submodelRef, Model model, Compartment compartment, int level, int version) {
-		if (model.containsSpecies(ms.name + "_molecule")) {
-			Species replacementSpecies = model.getSpecies(ms.name + "_molecule");
+    private static Species createSpecies(MolecularSpecies ms, String displayID, Model model, Compartment compartment) {
+		Species species = model.createSpecies(displayID, compartment);
+		species.setHasOnlySubstanceUnits(false);
+		species.setBoundaryCondition(false);
+		species.setConstant(false);
+		if (ms.getAmount() != 0) species.setInitialAmount(ms.getAmount());
+		else species.setInitialAmount(0);
+		if(ms.getUnit() != null) {
+			String unit = ms.getUnit().getLiteral();
+			if (model.findUnitDefinition(unit) == null) model.createUnitDefinition(unit);
+			species.setUnits(unit);
+			if (unit == "MOLECULE") species.setHasOnlySubstanceUnits(true);
+		}
+		return species;
+    }
+    
+    private static void setReplacement(MolecularSpecies ms, String displayId, String submodelRef,
+    		Model model, Model subModel, Compartment compartment, CompModelPlugin plugin) {
+		String mName = fixDisplayID(ms.getDisplayName());
+		createSpecies(ms, displayId, subModel, compartment);
+    	if (model.containsSpecies(mName + "_molecule")) {
+			Species replacementSpecies = model.getSpecies(mName + "_molecule");
 			CompSBasePlugin speciesPlugin = getCompSBasePlugin(replacementSpecies);
-			
-			Species replacedSpecies = model.createSpecies(displayId, compartment);
-			Port speciesPort = new Port(ms.name + "_port", level, version);
+
+			Port speciesPort = plugin.createPort();
+			speciesPort.setId(mName + "_species_port");
 			speciesPort.setIdRef(displayId);
 			
 			ReplacedElement reSpecies = speciesPlugin.createReplacedElement();
 			reSpecies.setSubmodelRef(submodelRef);
-			reSpecies.setPortRef(ms.name + "_port");
-		}
-		else{
-			createSpecies(ms, displayId, model, compartment);
+			reSpecies.setPortRef(mName + "_species_port");
 		}
     }
     
-    private static void setRule(Rule r, Model model, Compartment compartment) {
-		Reaction reaction = model.createReaction(r.name);
+	private static void setRule(Rule r, Model model, Compartment compartment) {
+		int uniqify = 1;
+		String displayID = fixDisplayID(r.getDisplayName());
+		String newDisplayID = displayID;
+		while (model.getReaction(newDisplayID) != null) {
+			newDisplayID = displayID + uniqify;
+			uniqify++;
+		}
+		Reaction reaction = model.createReaction(newDisplayID);
 		reaction.setCompartment(compartment);
-		for(MolecularSpecies ms : r.leftHandSide) {
-			String mName = ms.name + "_molecule";
+		reaction.setSBOTerm("SBO:0000412"); //Biological activity
+		reaction.setFast(false);
+		for(MolecularSpecies ms : r.getLeftHandSide()) {
+			String mName = fixDisplayID(ms.getDisplayName()) + "_molecule";
 			if (!model.containsSpecies(mName)) createSpecies(ms, mName, model, compartment);
-			reaction.createReactant(model.getSpecies(mName));
+			SpeciesReference reactant = reaction.createReactant(model.getSpecies(mName));
+			reactant.setConstant(false);
 		}
-		for(MolecularSpecies ms : r.rightHandSide) {
-			String mName = ms.name + "_molecule";
+		for(MolecularSpecies ms : r.getRightHandSide()) {
+			String mName = fixDisplayID(ms.getDisplayName()) + "_molecule";
 			if (!model.containsSpecies(mName)) createSpecies(ms, mName, model, compartment);
-			reaction.createProduct(model.getSpecies(mName));
+			SpeciesReference product = reaction.createProduct(model.getSpecies(mName));
+			product.setConstant(false);
 		}
-		if (r.isBidirectional) reaction.setReversible(true);
-		//set kinetic law. HOW TO MODEL NUMBERS
-		//set sboterm??
+		if (r.isIsBidirectional()) reaction.setReversible(true);
+		else reaction.setReversible(false);
+		KineticLaw k = reaction.createKineticLaw();
+		//set kinetic law. how do i generate mathml
     }
     
-    public static SBMLDocument makeSBMLDocument() {
-    	
-    	int version = 1;
-    	int level = 3;
-    	
-		SBMLDocument doc = new SBMLDocument(level, version);
-		doc.enablePackage(CompConstants.namespaceURI);
-		CompSBMLDocumentPlugin compDoc = getCompDocPlugin(doc);
-    	Model bioModel = compDoc.createModelDefinition(biocompilerModel.name);
-		CompModelPlugin bModelPlugin = getCompModelPlugin(bioModel);
-    	
-		for (Cell c : biocompilerModel.cells) {
+    private static void convertMolecules(List<MolecularSpecies> molecules, Model model, Compartment compartment) {
+		for (MolecularSpecies ms : molecules) {
+			createSpecies(ms, fixDisplayID(ms.getDisplayName()) + "_molecule", model, compartment);
+		}
+    }
+    
+    private static void convertDevices(List<Device> devices, Model cModel, CompModelPlugin cModelPlugin, CompSBasePlugin cBasePlugin, CompSBMLDocumentPlugin compDoc) {
+    	for (Device d : devices) {
+			String deviceName = fixDisplayID(d.getDisplayName());
+			Model dModel = compDoc.createModelDefinition(deviceName);
+			CompModelPlugin dModelPlugin = getCompModelPlugin(dModel);
+    		Submodel dSubmodel = new Submodel(deviceName + "_submodel", level, version);
+    		dSubmodel.setModelRef(deviceName);
+    		cModelPlugin.addSubmodel(dSubmodel);
+			
+			Compartment dCompartment = dModel.createCompartment(deviceName + "_compartment");
+			dCompartment.setConstant(true);
+			Port devicePort = dModelPlugin.createPort();
+			devicePort.setId(deviceName + "_compartment_port");
+			devicePort.setIdRef(deviceName + "_compartment");
+			ReplacedElement re = cBasePlugin.createReplacedElement();
+			re.setSubmodelRef(deviceName + "_submodel");
+			re.setPortRef(deviceName + "_compartment_port");			
+
+			//Create map of each species and how many times it occurs on left and right hand sides.
+			//If it appears equal numbers on left and right, its a modifier.
+			//If it appears more on left than right, its a reactant. Stoichiometry is left - right.
+			//Same for more on right than left.
+			//Kinetic law is take forward rate times each of reactants you found, raised to the power of its stoichiometry. If it is bidirectional, incorporate backwards reaction too. Forward - reverse rate.
+			
+			convertMolecules(d.getMoleculeList(), dModel, dCompartment);
+			
+			for (MolecularSpecies ms : d.getInputList()) {
+				setReplacement(ms, fixDisplayID(ms.getDisplayName()) + "_molecule", deviceName + "_submodel", cModel, dModel, dCompartment, dModelPlugin);
+			}
+			for (MolecularSpecies ms : d.getOutputList()) {
+				setReplacement(ms, fixDisplayID(ms.getDisplayName()) + "_molecule", deviceName + "_submodel", cModel, dModel, dCompartment, dModelPlugin);
+			}
+			
+    		for (Rule r : d.getRuleList()) {
+				setRule(r, dModel, dCompartment);
+			}
+
+		}
+    }
+    
+    private static void convertCells(List<Cell> cells, CompModelPlugin bModelPlugin, CompSBMLDocumentPlugin compDoc) {
+		for (Cell c : cells) {
     		
-    		Model cModel = compDoc.createModelDefinition(c.name);
-    		Compartment cCompartment = cModel.createCompartment(c.name + "_compartment");
+			String cellName = fixDisplayID(c.getDisplayName());
+    		Model cModel = compDoc.createModelDefinition(cellName);
+    		Compartment cCompartment = cModel.createCompartment(cellName + "_compartment");
+    		cCompartment.setConstant(true);
     		CompModelPlugin cModelPlugin = getCompModelPlugin(cModel);
 			CompSBasePlugin cBasePlugin = getCompSBasePlugin(cCompartment);
     		
-    		Submodel cSubmodel = new Submodel(c.name + "_submodel", level, version);
-    		cSubmodel.setModelRef(c.name);
+    		Submodel cSubmodel = new Submodel(cellName + "_submodel", level, version);
+    		cSubmodel.setModelRef(c.getDisplayName());
     		bModelPlugin.addSubmodel(cSubmodel);
     		
-//    		for (MolecularSpecies ms : c.moleculeList) { /* Have it ignore DNA parts? */
-//    			createSpecies(ms, ms.name + "_molecule", cModel, cCompartment);
-//    		}
-    		
-//    		for (Rule r : c.ruleList) {
-//    			setRule(r, cModel, cCompartment);
-//    		}
-    		
-    		for (Device d : c.devices) {
-    			Model dModel = compDoc.createModelDefinition(d.name);
-        		Submodel dSubmodel = new Submodel(d.name + "_submodel", level, version);
-        		dSubmodel.setModelRef(d.name);
-        		cModelPlugin.addSubmodel(dSubmodel);
-    			
-    			Compartment dCompartment = dModel.createCompartment(d.name + "_compartment");
-    			Port devicePort = new Port(d.name + "_port", level, version);
-//    			devicePort.setSBaseRef(dCompartment); SET ID REF
-    			ReplacedElement re = cBasePlugin.createReplacedElement();
-    			re.setSubmodelRef(d.name + "_submodel");
-    			re.setPortRef(d.name + "_port");
-    			
-    			String partName = "DNA";
-    			ArrayList<Biopart> allParts = d.parts;
-    			Collections.sort(allParts, (Biopart a, Biopart b) -> {
-    				return a.position.getValue() > b.position.getValue() ? 1 : -1;
-    			});
-    			for (Biopart part : allParts) {
-    				partName += "_" + part.name;
-    			}
-    			//Give DNA name device name_DNA.
-    			//Create species for DNA part that appears in rule
-    			dModel.createSpecies(partName, dCompartment);
-    			//Create map of each species and how many times it occurs on left and right hand sides.
-    			//If it appears equal numbers on left and right, its a modifier.
-    			//If it appears more on left than right, its a reactant. Stoichiometry is left - right.
-    			//Same for more on right than left.
-    			//Kinetic law is take forward rate times each of reactants you found, raised to the power of its stoichiometry. If it is bidirectional, incorporate backwards reaction too. Forward - reverse rate.
-    			
-//        		for (MolecularSpecies ms : d.moleculeList) { /* Have it ignore DNA parts? */
-//    				createSpecies(ms, ms.name + "_molecule", dModel, dCompartment);
-//    			}
-    			
-    			for (MolecularSpecies ms : d.inputList) {
-    				setReplacement(ms, ms.name + "_input", d.name + "_submodel", dModel, dCompartment, level, version);
-    			}
-    			for (MolecularSpecies ms : d.outputList) {
-    				setReplacement(ms, ms.name + "_output", d.name + "_submodel", dModel, dCompartment, level, version);
-    			}
-    			
-//        		for (Rule r : d.ruleList) {
-//    				setRule(r, dModel, dCompartment);
-//    			}
-
+    		for (MolecularSpecies ms : c.getMoleculeList()) {
+    			if(ms.getBiologicalType() == "DNA") continue;
+    			createSpecies(ms, fixDisplayID(ms.getDisplayName()) + "_molecule", cModel, cCompartment);
     		}
+    		
+    		for (Rule r : c.getRuleList()) {
+    			setRule(r, cModel, cCompartment);
+    		}
+    		
+    		convertDevices(c.getDeviceList(), cModel, cModelPlugin, cBasePlugin, compDoc);
 
     	}
+    }
+    
+    private static void convertRegions(List<Region> regions, CompModelPlugin bModelPlugin, CompSBMLDocumentPlugin compDoc) {
+    	for (Region r : regions) {
+    		
+    		String regionName = fixDisplayID(r.getDisplayName());
+    		Model rModel = compDoc.createModelDefinition(regionName);
+    		CompModelPlugin rModelPlugin = getCompModelPlugin(rModel);
+    		
+    		Submodel rSubmodel = new Submodel(regionName + "_submodel", level, version);
+    		rSubmodel.setModelRef(regionName);
+    		bModelPlugin.addSubmodel(rSubmodel);
+    		
+    		convertCells(r.getCellList(), rModelPlugin, compDoc);
+    
+    	}
+    }
+    
+    public static SBMLDocument makeSBMLDocument(roadblock.emf.ibl.Ibl.Model model, FlatModel flatModel) {
+		SBMLDocument doc = new SBMLDocument(level, version);
+		doc.enablePackage(CompConstants.namespaceURI);
+		CompSBMLDocumentPlugin compDoc = getCompDocPlugin(doc);
+		String modelName = (model != null ? fixDisplayID(model.getDisplayName()) : "Flat_Model");
+		Model bioModel = doc.createModel(modelName);
+		createUnits(bioModel);
+		
+		CompModelPlugin bModelPlugin = getCompModelPlugin(bioModel);
+    	
+		if (model == null) {
+    		Compartment bCompartment = bioModel.createCompartment("Flat_Model_compartment");
+    		bCompartment.setConstant(true);
+			convertMolecules(flatModel.getMoleculeList(), bioModel, bCompartment);
+			for (Rule r : flatModel.getRuleList()) {
+				setRule(r, bioModel, bCompartment);
+			}
+			return doc;
+		}
+		
+    	List<Region> regions = model.getRegionList();
+    	List<Cell> cells = model.getCellList();
+    	List<Device> devices = model.getDeviceList();
+    	List<MolecularSpecies> molecules = model.getMoleculeList();
+    	
+    	if (regions != null && !regions.isEmpty()) {
+    		convertRegions(regions, bModelPlugin, compDoc);
+    	}
+    	else if (cells != null && !cells.isEmpty()) {
+    		convertCells(cells, bModelPlugin, compDoc);
+    	}
+    	else {
+    		Compartment cCompartment = bioModel.createCompartment(modelName + "_compartment");
+    		cCompartment.setConstant(true);
+			CompSBasePlugin cBasePlugin = getCompSBasePlugin(cCompartment);
+        	if (devices != null && !devices.isEmpty()) {
+        		convertDevices(devices, bioModel, bModelPlugin, cBasePlugin, compDoc);
+        	}
+        	else {
+        		convertMolecules(molecules, bioModel, cCompartment);
+        	}
+    	}
+		
+		ID = 1;
     	return doc;
     	
     }
-    
 }
